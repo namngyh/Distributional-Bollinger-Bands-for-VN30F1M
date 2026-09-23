@@ -70,6 +70,14 @@ Phase 7A đã được người dùng chạy đủ bốn trial và hai báo cáo
 
 Chạy `run_phase7b.bat check` để kiểm tra chỉ đọc Phase 7A và checkpoint 7B; sau đó chạy `run_phase7b.bat` trên máy dành cho tác vụ dài. Runner lưu PIT, prediction, daily diagnostics và `latest.json` atomically sau **mỗi ngày**, kiểm tra hash khi resume, rồi tạo báo cáo riêng 1m/5m trong `outputs/phase7b_v1/`. Không xóa output khi bị ngắt; chạy lại cùng file để tiếp tục. Báo cáo giữ pinball, coverage hai phía, PIT, independence, bootstrap và mọi kết quả âm, không tự chốt mô hình.
 
+Phase 7B đã được người dùng chạy xong và kiểm tra lại: 748/748 ngày mỗi khung, 688 ngày được chấm sau warmup. Theo quyết định khóa DEC-005, final test dùng **Empirical EWMA HL30 (1m)** và **Normal Mixture 2 HL30 hiệu chỉnh PIT quá khứ (5m)**. Đây là quyết định dựa trên development; 2025–2026 chưa được dùng để điều chỉnh mô hình.
+
+## Phase 8: final test đã khóa
+
+`configs/phase8_v1.json` cố định hai mô hình, 5 mức coverage, giai đoạn 2025-01-01–2026-07-17 và hash của hai báo cáo Phase 7B. Runner nối tiếp EWMA và lịch refit Mixture 5 phiên từ development (không reset ngày đầu final); mỗi fit mới chỉ dùng 60 phiên trước đó. PIT hiệu chỉnh ở 5m bắt đầu từ lịch sử Phase 7B và chỉ bổ sung quan sát của một phiên **sau khi** phiên đó được dự báo/chấm xong. Empirical HL30 ở 5m được giữ làm đối chứng cùng nến; 1m chỉ đánh giá mô hình đã khóa. Nếu fit 5m thất bại, job dừng với checkpoint, không thay mô hình ngầm.
+
+Chạy `run_phase8.bat check` để kiểm tra chỉ-đọc, rồi `run_phase8.bat` trên máy dành cho tác vụ dài. Dự báo, điểm theo ngày, PIT 5m và checkpoint được lưu atomically tại `outputs/phase8_v1/<timeframe>/`; chạy lại cùng file để resume, **không xóa output**. Báo cáo cuối tại `report.json` gồm pinball, coverage, hai phía vượt band, PIT/independence, phân tách năm mô tả và so sánh 5m với Empirical. Không dùng kết quả final để thử tham số khác; gửi lại toàn bộ `outputs/phase8_v1/` để kiểm tra artifact và diễn giải kết quả một lần.
+
 Project này nghiên cứu việc **xây dựng và kiểm định Bollinger Band dựa trên các phân phối xác suất khác nhau** đối với hợp đồng tương lai **VN30F1M**, sử dụng dữ liệu nến **1 phút** và triển khai bằng Python.
 
 Bollinger Band truyền thống sử dụng trung bình động và độ lệch chuẩn để xác định vùng giá bất thường. Tuy nhiên, lợi suất tài chính thường có các đặc điểm như **fat tails, skewness và volatility clustering**, khiến giả định về một phân phối đối xứng hoặc việc sử dụng cố định khoảng cách \(k\sigma\) có thể không phản ánh chính xác xác suất xuất hiện của các biến động cực đoan.
