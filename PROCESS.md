@@ -211,14 +211,15 @@ Application: None
 API: None
 Worker: None
 CLI: python -m distributional_bands.cli audit|prepare
-Training: Not implemented
+Baseline: python -m distributional_bands.baseline --timeframe 1m|5m ...; run_baseline.bat for full development run
+Training: Distribution fitting not implemented
 Backtest: Not implemented
 Tests: python -m unittest discover -s tests -v
-Configuration: configs/data_v1.json
-Checkpoints: Not yet applicable; required for long walk-forward jobs
-Experiments: Not implemented
-Outputs: outputs/data_v1/ (user-run preparation)
-Logs: CLI stdout and manifest.json
+Configuration: configs/data_v1.json; configs/baseline_v1.json
+Checkpoints: outputs/baseline_v1/<timeframe>/latest.json (full run); bounded smoke checkpoints in outputs/baseline_smoke_v1/
+Experiments: BASELINE-V1 (development forecasts only)
+Outputs: outputs/data_v1/; outputs/baseline_v1/ after user run
+Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
 
 ---
@@ -234,7 +235,7 @@ Build and compare 1m/5m distributional bands, prioritizing out-of-sample forecas
 ## Current task
 
 ```text
-Phase 0–2 foundation: research plan, data audit, deterministic 1m/5m preparation and tests. Next: resolve source timestamp/rollover facts, then phase 3 baseline.
+Phase 3 baseline implemented for both timeframes; full development walk-forward is ready for user-run on another machine. Next: inspect returned artifacts and source metadata before phase 4.
 ```
 
 ## Current state
@@ -256,7 +257,7 @@ DONE
 Current:
 
 ```text
-DISCUSSING — phase 0–2 code is tested; data source unknowns are documented before the next gate.
+TESTING — phase 3 unit and bounded real-data smoke tests passed; full user-run is not yet verified.
 ```
 
 ## Last known working state
@@ -264,15 +265,15 @@ DISCUSSING — phase 0–2 code is tested; data source unknowns are documented b
 ```text
 Branch: main (tracks origin/main)
 Commit: See `git log -1`; original remote base is ca2d150.
-Command: python -m unittest discover -s tests -v; python -m distributional_bands.cli audit
-Result: Six unit tests and read-only real-data audit passed; generated dataset hashes match manifest.
+Command: python -m unittest discover -s tests -v; bounded `python -m distributional_bands.baseline ... --max-days` for 1m and 5m.
+Result: Eleven unit tests passed; both timeframes checkpointed and resumed through the third real-data trading day.
 Date: 2026-09-23
 ```
 
 ## Current modifications
 
 ```text
-Phase 0–2 source/doc files were added on top of origin/main. Raw CSV and outputs/data_v1/ are ignored by Git and remain local.
+Phase 3 baseline code, config, portable .bat, tests and docs are the current change. Raw CSV and all outputs are ignored by Git and remain local.
 ```
 
 ## Blockers
@@ -1817,8 +1818,22 @@ Status: DOCUMENTED
 Changes: Recorded DEC-001 and portable .bat/checkpoint requirements for future heavy experiments.
 Files changed: PROCESS.md, docs/research_plan.md.
 Validation: Documentation review and git diff --check; no computational experiment run.
-Latest checkpoint: N/A; no long-run model job has started.
-Remaining: Implement and test checkpoint/resume when phase 5 is approved.
+Latest checkpoint: N/A at the time of this decision; phase 3 later added bounded baseline smoke checkpoints.
+Remaining: Use the rule for full baseline and later distribution experiments.
+```
+
+## 2026-09-23 — Phase 3 baseline
+
+```text
+Status: TESTED locally; full user-run NOT VERIFIED.
+Changes: Added Normal EWMA, Normal rolling variance and empirical EWMA quantile baselines for 1m/5m, development-only date filter, daily atomic checkpoint/resume, metrics, portable run_baseline.bat.
+Files changed: src/distributional_bands/baseline.py, configs/baseline_v1.json, tests/test_baseline.py, run_baseline.bat, README.md, docs/research_plan.md, PROCESS.md.
+Validation: Eleven unit tests passed; bounded real-data smoke ran three days per timeframe and resumed from day two to day three.
+Experiment ID: BASELINE-V1.
+Latest checkpoint: outputs/baseline_smoke_v1/1m/latest.json and outputs/baseline_smoke_v1/5m/latest.json, both through 2017-11-08 (3/1790 development days).
+Best checkpoint: N/A for deterministic baseline.
+Artifacts: Smoke checkpoints only; no full development metrics or selected model.
+Remaining: User runs run_baseline.bat on the other machine; inspect metrics/artifacts and validate source timestamp/rollover metadata.
 ```
 
 Template:
@@ -1854,37 +1869,37 @@ Không dump toàn bộ terminal log.
 Khi đổi AI hoặc kết thúc session dang dở:
 
 ```text
-Current task: Phase 0–2 foundation for 1m and 5m distributional band research.
+Current task: Phase 3 reproducible baseline forecasts for 1m and 5m.
 
-Current status: TESTED; discuss data-source unknowns before phase 3.
+Current status: Local tests and bounded smoke VERIFIED; full user-run NOT VERIFIED.
 
-Approved scope: User requested whole-phase summary and to begin coding; prior discussion scoped first implementation to phase 0–2.
+Approved scope: User asked to continue after phase 0–2 and directed that light tasks run locally while full jobs use a portable .bat and checkpoints.
 
 What has been investigated: Raw CSV schema, chronology, session boundaries, missing minutes, return outliers, buy/sell volume mismatch.
 
-What has been implemented: Versioned data policy, deterministic 1m/5m sample builder, read-only audit CLI, user-run preparation script, synthetic tests.
+What has been implemented: Phase 0–2 data foundation plus phase 3 baseline runner, metrics, daily checkpoint/resume, unit tests and run_baseline.bat.
 
-Files touched: README.md, PROCESS.md, docs/, configs/, src/, tests/, pyproject.toml, .gitignore, run_prepare.bat. Former REAME.md was renamed.
+Files touched this task: baseline.py, baseline_v1.json, test_baseline.py, run_baseline.bat, README.md, docs/research_plan.md, PROCESS.md.
 
-Pre-existing user changes: The GitHub repository started with a one-line README. Local raw CSV and user-generated outputs/data_v1/ were preserved and excluded from Git.
+Pre-existing user changes: Git worktree was clean before this task. Local raw CSV and user-generated outputs/data_v1/ were preserved and remain ignored by Git.
 
-Tests already run: Six unittest tests; read-only data audit; SHA-256 verification of raw CSV and both generated outputs.
+Tests already run: Eleven unittest tests; bounded baseline smoke for 1m/5m, then one-day resume for each.
 
-Experiment ID: None.
+Experiment ID: BASELINE-V1.
 
-Latest checkpoint: N/A.
+Latest checkpoint: outputs/baseline_smoke_v1/<timeframe>/latest.json through 2017-11-08; full run has not started.
 
-Best checkpoint: N/A.
+Best checkpoint: N/A for deterministic baseline.
 
-Can resume: N/A for data preparation; long-run modeling has not begun.
+Can resume: VERIFIED for bounded smoke on both timeframes; full run resume not yet user-verified.
 
 Known issue: Source timestamp convention and rollover metadata absent.
 
-Next recommended action: Confirm source metadata, inspect DATA-V1 report, then plan phase 3 baseline. Work from origin/main. Follow DEC-001 for light/heavy execution and checkpoints.
+Next recommended action: User runs run_baseline.bat on the other machine, returns metrics/checkpoints/logs, then inspect development OOS results and confirm source metadata before phase 4.
 
 Do NOT: Treat 2025–2026 as finalized untouched test until research split is approved; do not run full fitting/backtest yet.
 
-Waiting for user decision on: Data-source metadata and phase 3 method after reviewing phase 0–2 results.
+Waiting for user decision on: Source timestamp/rollover metadata and any change to the provisional development/final split before phase 4 selection.
 ```
 
 AI mới phải đọc phần này trước khi tiếp tục.
@@ -1894,20 +1909,20 @@ AI mới phải đọc phần này trước khi tiếp tục.
 # 54. CURRENT CHECKPOINT STATUS
 
 ```text
-Experiment: None
-Run: None
+Experiment: BASELINE-V1 bounded smoke only
+Run: BASELINE-V1-1m and BASELINE-V1-5m
 
-Latest checkpoint: N/A
-Created: N/A
-Progress: Phase 0–2 only
+Latest checkpoint: outputs/baseline_smoke_v1/<timeframe>/latest.json
+Created: 2026-09-23
+Progress: Both timeframes through 2017-11-08, 3/1790 days. Full run not started.
 
 Best checkpoint: N/A
 Metric: N/A
 Value: N/A
 
-Resume status: NOT APPLICABLE
+Resume status: VERIFIED for bounded smoke; full run NOT VERIFIED
 
-Last successful resume test: N/A
+Last successful resume test: 2026-09-23, resumed 1m and 5m from day 2 to day 3.
 ```
 
 ---
@@ -1917,7 +1932,8 @@ Last successful resume test: N/A
 ```text
 [ ] Confirm source timestamp labeling/timezone and contract rollover rule.
 [ ] Review DATA-V1 policy and choose the final train/validation/test split.
-[ ] Discuss and approve phase 3 baseline before implementation.
+[ ] Run run_baseline.bat on another machine and inspect returned development results/checkpoints.
+[ ] Discuss phase 4 distribution fitting after the baseline gate.
 ```
 
 Danh sách này không phải authorization để code.

@@ -1,6 +1,6 @@
 # Distributional Bollinger Bands for VN30F1M
 
-**Trạng thái:** Đã triển khai phase 0–2 (research contract, data audit, chuẩn bị mẫu 1m/5m). Chưa fit phân phối hoặc chạy backtest.
+**Trạng thái:** Phase 0–2 đã hoàn thành phần nền tảng; phase 3 baseline đã code và kiểm thử nhẹ. Full baseline run, fit các phân phối ứng viên và backtest chưa chạy.
 
 Xem [lộ trình nghiên cứu](docs/research_plan.md) và [data contract](docs/data_contract.md). Dataset gốc `ohlc_export.csv` được giữ nguyên tại root và không đưa vào Git.
 
@@ -19,6 +19,14 @@ python -m distributional_bands.cli audit
 ```
 
 Để tạo bộ mẫu nghiên cứu chính thức, chạy `run_prepare.bat`. Lệnh này ghi `outputs/data_v1/` và từ chối ghi đè thư mục đã tồn tại.
+
+## Phase 3: baseline development walk-forward
+
+Sau khi `outputs/data_v1/` đã có đủ hai file mẫu và `manifest.json`, chạy `run_baseline.bat` trên máy Windows dùng để xử lý job dài. Cần mang theo repository và thư mục `outputs/data_v1/`; nếu chỉ có raw CSV, chạy `run_prepare.bat` trên máy đó trước.
+
+Script chạy lần lượt 1m và 5m, tự nhận checkpoint hợp lệ trong `outputs/baseline_v1/<timeframe>/latest.json` và tiếp tục từ ngày kế tiếp. Dự báo được lưu theo ngày trong `predictions/`; `metrics.json` chỉ có sau khi job hoàn tất. Ngắt job rồi chạy lại cùng lệnh để resume. Dataset, config hoặc code khác với checkpoint sẽ bị từ chối.
+
+Lần chạy này chỉ phát dự báo development giai đoạn 2022–2024. Dữ liệu 2025–2026 chưa được dùng để chọn mô hình. Tham số và lịch chạy được ghi ở [baseline_v1.json](configs/baseline_v1.json); chi tiết tại [research plan](docs/research_plan.md).
 
 Project này nghiên cứu việc **xây dựng và kiểm định Bollinger Band dựa trên các phân phối xác suất khác nhau** đối với hợp đồng tương lai **VN30F1M**, sử dụng dữ liệu nến **1 phút** và triển khai bằng Python.
 

@@ -26,6 +26,18 @@ Các band trung tâm dự kiến: 90%, 95%, 97,5%, 99% và 99,5%. Ví dụ band 
 | 9. Final test | Đánh giá trên giai đoạn chưa dùng chọn mô hình | Báo cáo toàn bộ kết quả, gồm kết quả âm |
 | 10. Reproducibility | Artifact lineage, config, logs, scripts, báo cáo | Run có thể truy nguyên và tái tạo |
 
+### Baseline implementation (phase 3)
+
+`configs/baseline_v1.json` cố định lần chạy development: dữ liệu quá khứ từ 2017 được cập nhật tuần tự; chỉ phát prediction từ 2022-01-01 đến 2024-12-31. Đây là cửa sổ development cho baseline, chưa phải quyết định về final test. Ba mô hình:
+
+- `normal_ewma`: `mu=0`, phương sai EWMA cập nhật sau khi quan sát return; half-life 60 phút giao dịch.
+- `normal_rolling`: `mu=0`, căn bậc hai của trung bình bình phương return trong 240 phút giao dịch gần nhất.
+- `empirical_ewma`: quantile của return đã chia cho sigma EWMA, lấy từ tối đa 60 phiên trước đó và cố định trong ngày hiện tại; cần ít nhất 20 phiên lịch sử.
+
+Normal quantile dùng phân phối chuẩn chuẩn hóa. Tất cả ba baseline dùng cùng các central coverage đã định nghĩa và lưu cả quantile return lẫn band giá. Forecast của bar hiện tại được tạo trước khi return mục tiêu đi vào EWMA, rolling window hoặc lịch sử empirical.
+
+`run_baseline.bat` chạy hai timeframe theo thứ tự, ghi prediction từng ngày và checkpoint `latest.json` sau **mỗi ngày**. Khi resume, runner đối chiếu hash của input, data manifest, config, source code và mọi prediction đã checkpoint; một ngày bị gián đoạn có thể tính lại, nhưng output khác với file đã có sẽ bị từ chối. `best` không áp dụng cho baseline xác định, vì không có quá trình chọn model trong run. Full run do người dùng thực hiện trên máy khác; AI chỉ chạy bounded smoke test.
+
 ## Phương pháp ước lượng dự kiến cho phase 3–7
 
 Mô hình `r[t+1] = mu[t+1|t] + sigma[t+1|t] * z[t+1]`. Vòng so sánh phân phối đầu tiên đặt `mu=0`, dùng cùng volatility estimator EWMA trong từng timeframe, và fit phân phối trên `z`. Shape parameters fit trên rolling training window dài hơn cửa sổ cập nhật volatility. Tần suất fit và độ dài cửa sổ sẽ được chốt bằng validation; mốc thử ban đầu là 60 phiên và fit lại mỗi 5 phiên.
@@ -50,4 +62,4 @@ AI chạy trực tiếp các kiểm tra nhẹ (unit/smoke tests, audit, benchmar
 
 ## Trạng thái hiện tại
 
-Phase 0–2: triển khai nền tảng và kiểm thử. Phase 3–10: chưa triển khai. Các unknown về timestamp convention và rollover được giữ rõ trong [data contract](data_contract.md).
+Phase 0–2: đã triển khai và kiểm thử. Phase 3: baseline runner đã triển khai, unit tests và bounded smoke test đã đạt; full user-run chưa được xác minh. Phase 4–10: chưa triển khai. Các unknown về timestamp convention và rollover được giữ rõ trong [data contract](data_contract.md).

@@ -1,0 +1,10 @@
+{
+  "experiment_id": "BASELINE-V1",
+  "prediction_start": 20220101,
+  "last_development_date": 20241231,
+  "ewma_half_life_minutes": 60,
+  "rolling_window_minutes": 240,
+  "empirical_window_days": 60,
+  "empirical_min_days": 20,
+  "central_coverages": [0.9, 0.95, 0.975, 0.99, 0.995]
+}
