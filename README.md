@@ -50,6 +50,12 @@ Có thể chạy `.\run_distribution_walkforward.bat check` để chỉ kiểm t
 
 Khi hoàn tất, gửi lại toàn bộ `outputs/distribution_wf_v1/` để kiểm tra. `metrics.json` gồm điểm trên mọi dự báo khả dụng, điểm **paired** trên các thanh mà cả chín mô hình đều fit thành công, và bảng xếp hạng pinball mô tả. `fit_history.json` giữ tham số, cửa sổ train, hội tụ và lỗi từng lần refit. Đây **chưa phải** quyết định winner cuối cùng: cần xét coverage, fit failure, ổn định theo thời gian; 2025–2026 tiếp tục là final test chưa đụng tới.
 
+## Phase 6: đánh giá development OOS
+
+Hai run distribution walk-forward 1m/5m đã được người dùng chạy và kiểm tra hoàn tất 748/748 ngày, với 0 fit failure trên cả chín ứng viên. Chạy `run_selection.bat check` để kiểm tra nguồn và checkpoint mà không phân tích; chạy `run_selection.bat` để tính đầy đủ. Script chỉ đọc DATA-V1, BASELINE-V1 và DISTRIBUTION-WF-V1; kết quả lưu riêng ở `outputs/selection_v1/<timeframe>/`. Mỗi ngày phân tích xong được ghi atomically vào `daily/` và `latest.json`; chạy lại cùng lệnh để resume. Full run có thể tốn thời gian vì PIT của GH; AI chỉ chạy smoke giới hạn.
+
+`report.json` gồm pinball trên cùng thanh dự báo, coverage và exceedance hai phía, độ rộng band, độ ổn định theo năm, independence của các lần vượt band trong từng phiên, histogram PIT của các phân phối, cùng khoảng tin cậy day-block bootstrap/giá trị p hiệu chỉnh Holm so với empirical EWMA. Đây là **chẩn đoán trên development OOS**, không tự động khóa winner hay mở final test. Cần trao đổi kết quả và ghi quyết định chọn mô hình trước khi dùng dữ liệu 2025+.
+
 Project này nghiên cứu việc **xây dựng và kiểm định Bollinger Band dựa trên các phân phối xác suất khác nhau** đối với hợp đồng tương lai **VN30F1M**, sử dụng dữ liệu nến **1 phút** và triển khai bằng Python.
 
 Bollinger Band truyền thống sử dụng trung bình động và độ lệch chuẩn để xác định vùng giá bất thường. Tuy nhiên, lợi suất tài chính thường có các đặc điểm như **fat tails, skewness và volatility clustering**, khiến giả định về một phân phối đối xứng hoặc việc sử dụng cố định khoảng cách \(k\sigma\) có thể không phản ánh chính xác xác suất xuất hiện của các biến động cực đoan.

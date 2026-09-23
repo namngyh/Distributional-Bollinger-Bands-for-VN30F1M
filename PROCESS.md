@@ -212,13 +212,14 @@ API: None
 Worker: None
 CLI: python -m distributional_bands.cli audit|prepare
 Baseline: python -m distributional_bands.baseline --timeframe 1m|5m ...; run_baseline.bat for full development run
-Training: `distributional_bands.distributions.fit_distribution`; full development walk-forward via `distributional_bands.walk_forward` and `run_distribution_walkforward.bat` (not yet user-run)
+Training: `distributional_bands.distributions.fit_distribution`; completed development walk-forward via `distributional_bands.walk_forward` and `run_distribution_walkforward.bat`
+Analysis: `distributional_bands.selection`; full Phase 6 diagnostics via `run_selection.bat` (user-run pending)
 Backtest: Not implemented
 Tests: python -m unittest discover -s tests -v
-Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v1.json; configs/distribution_fit_v2.json; configs/walk_forward_v1.json
-Checkpoints: outputs/baseline_v1/<timeframe>/latest.json (completed); outputs/distribution_wf_v1/<timeframe>/latest.json after user run
-Experiments: BASELINE-V1 verified; DISTRIBUTION-WF-V1 ready for user-run, not yet run
-Outputs: outputs/data_v1/; outputs/baseline_v1/ verified; outputs/distribution_wf_v1/ not yet created
+Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v1.json; configs/distribution_fit_v2.json; configs/walk_forward_v1.json; configs/selection_v1.json
+Checkpoints: outputs/baseline_v1/<timeframe>/latest.json and outputs/distribution_wf_v1/<timeframe>/latest.json complete; outputs/selection_v1/<timeframe>/latest.json pending
+Experiments: BASELINE-V1 and DISTRIBUTION-WF-V1 user-run verified; SELECTION-V1 locally tested, full user-run pending
+Outputs: outputs/data_v1/; outputs/baseline_v1/ and outputs/distribution_wf_v1/ verified; outputs/selection_v1/ pending
 Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
 
@@ -235,7 +236,7 @@ Build and compare 1m/5m distributional bands, prioritizing out-of-sample forecas
 ## Current task
 
 ```text
-Phase 4A–4B nine-candidate library and Phase 5 checkpointed development OOS runner implemented. Next: user runs run_distribution_walkforward.bat and returns artifacts for integrity/OOS review.
+Phase 6 diagnostics package implemented for completed 1m/5m development OOS runs. Next: full `run_selection.bat` on user's machine and review results before a model-lock decision.
 ```
 
 ## Current state
@@ -257,7 +258,7 @@ DONE
 Current:
 
 ```text
-TESTING — 28 unit/integration tests, bounded 1m/5m numerical smoke and real-data preflight passed; full distribution user-run NOT VERIFIED.
+TESTING — DISTRIBUTION-WF-V1 user-run artifacts VERIFIED. Phase 6 code has 31 passing tests, read-only preflight and bounded real-data smoke; full selection diagnostics NOT RUN.
 ```
 
 ## Last known working state
@@ -265,15 +266,15 @@ TESTING — 28 unit/integration tests, bounded 1m/5m numerical smoke and real-da
 ```text
 Branch: main (tracks origin/main)
 Commit: See `git log -1`; original remote base is ca2d150.
-Command: python -m unittest discover -s tests -v; bounded 120-observation 1m/5m in-sample fit smoke; run_distribution_walkforward.bat check; git diff --check.
-Result: 28 unit/integration tests passed; all nine candidates fitted on each bounded historical sample; preflight confirmed 0/748 development days for both timeframes and created no distribution output. No full walk-forward or final-test access.
+Command: completed distribution runner validation on 1m/5m; python -m unittest discover -s tests -v; run_selection.bat check; bounded two-day selection smoke per timeframe.
+Result: 748/748 walk-forward days and all 748 daily prediction hashes validated per timeframe; metrics/fit history matched checkpoints. 31 tests passed; selection preflight 0/748 and two-day smoke/resume passed per timeframe. No full Phase 6 run or final-test access.
 Date: 2026-09-23
 ```
 
 ## Current modifications
 
 ```text
-Phase 4B and Phase 5 add skewed.py, walk_forward.py, versioned V2 fit/walk configs, portable .bat, tests and documentation; distributions.py extended. Baseline code/config/checkpoints and DATA-V1 artifacts remain unchanged. Raw CSV and outputs are ignored by Git.
+Phase 6 adds selection.py, selection_v1.json, run_selection.bat, tests and docs. Baseline, distribution runner, their completed checkpoints and DATA-V1 artifacts remain unchanged. Raw CSV and outputs are ignored by Git.
 ```
 
 ## Blockers
@@ -1464,6 +1465,29 @@ Git/source lineage: See each run_manifest.json; source file hashes are recorded 
 ```
 
 ```text
+Experiment ID: DISTRIBUTION-WF-V1
+Run IDs: DISTRIBUTION-WF-V1-1m; DISTRIBUTION-WF-V1-5m
+Checkpoint: outputs/distribution_wf_v1/<timeframe>/latest.json (complete, 748/748 days, last day 2024-12-31)
+Metrics: outputs/distribution_wf_v1/<timeframe>/metrics.json
+Fit history: outputs/distribution_wf_v1/<timeframe>/fit_history.json
+Predictions: outputs/distribution_wf_v1/<timeframe>/predictions/ (748 daily CSV per timeframe)
+Manifest: outputs/distribution_wf_v1/<timeframe>/run_manifest.json
+Config: configs/distribution_fit_v2.json; configs/walk_forward_v1.json
+Validation: completed-run runner verified signatures, all prediction hashes, metrics and fit history for both timeframes on 2026-09-23. Nine candidates each had 150 fit attempts and zero failures per timeframe.
+Selection: no winner locked; paired pinball ranking is descriptive only.
+```
+
+```text
+Experiment ID: SELECTION-V1
+Run IDs: SELECTION-V1-1m; SELECTION-V1-5m
+Checkpoint: outputs/selection_v1/<timeframe>/latest.json (full user-run pending)
+Daily analyses: outputs/selection_v1/<timeframe>/daily/ (pending)
+Report: outputs/selection_v1/<timeframe>/report.json (pending)
+Config: configs/selection_v1.json
+Validation: read-only preflight and bounded two-day smoke only; no full analysis artifact yet.
+```
+
+```text
 Experiment ID:
 Run ID:
 
@@ -1938,6 +1962,20 @@ Rollback plan: Prior commit dc7618b. Remove/revert only this implementation if n
 Remaining: User executes `.\run_distribution_walkforward.bat` on a machine with DATA-V1 artifacts and returns outputs/distribution_wf_v1/. Confirm source rollover/timezone when available; assess candidate coverage and fit failures before winner selection.
 ```
 
+## 2026-09-23 — Phase 5 user-run verification and Phase 6 diagnostics package
+
+```text
+Status: DISTRIBUTION-WF-V1 USER-RUN ARTIFACTS VERIFIED; SELECTION-V1 IMPLEMENTED and locally TESTED, full diagnostics NOT RUN.
+Changes: Verified completed 1m/5m distribution runs; added development-only quantile calibration, PIT, within-session exceedance dependence, yearly stability and day-block bootstrap comparisons with daily atomic checkpoint/resume.
+Files changed: src/distributional_bands/selection.py, configs/selection_v1.json, run_selection.bat, tests/test_selection.py, README.md, docs/research_plan.md, PROCESS.md. DATA-V1, BASELINE-V1 and DISTRIBUTION-WF-V1 code/artifacts untouched.
+Validation: Existing distribution runner confirmed both 748/748 checkpoints, all prediction hashes, metrics and fit histories. Each timeframe had 150 attempts/model, zero fit failures. 31 unit/integration tests passed; run_selection.bat check returned 0/748 each; bounded two-day real-data smoke and resume succeeded for each timeframe. No full diagnostics or final-test access.
+Experiment ID: SELECTION-V1; upstream DISTRIBUTION-WF-V1 and BASELINE-V1.
+Latest checkpoint: Phase 5 complete at outputs/distribution_wf_v1/<timeframe>/latest.json; Phase 6 full path not created. Bounded smoke checkpoints under outputs/selection_smoke_v*/ are ignored, not official.
+Best checkpoint: N/A; no model selected. Descriptive leaders are GH 1m and Normal Mixture 3 5m, but margins over empirical EWMA are small.
+Artifacts: New source/config/tests/batch only; official selection report pending user-run.
+Remaining: User runs run_selection.bat and returns outputs/selection_v1/; evaluate calibration, uncertainty and stability, then explicitly agree on any winner lock. Source timezone/rollover remain unknown.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -1971,37 +2009,37 @@ Không dump toàn bộ terminal log.
 Khi đổi AI hoặc kết thúc session dang dở:
 
 ```text
-Current task: Package and hand off official Phase 4B/5 development OOS walk-forward for user execution.
+Current task: Hand off Phase 6 development OOS diagnostics for user execution and later model-selection discussion.
 
-Current status: Nine-candidate fit library and checkpointed OOS runner IMPLEMENTED and locally TESTED; full distribution user-run NOT VERIFIED. Phase 3 baseline artifacts remain VERIFIED.
+Current status: Phase 3 baseline and Phase 5 distribution user-run artifacts VERIFIED. Phase 6 diagnostics IMPLEMENTED and locally TESTED; full Phase 6 user-run NOT VERIFIED.
 
-Approved scope: User explicitly asked to code the remaining phase 4 and enable an official run immediately. Add skewed-t, skewed-GED, Mixture 3, development OOS runner, portable .bat, checkpoint/resume, tests and docs. AI runs no full fit/backtest.
+Approved scope: User said "OK tiếp tục đi" after proposal to implement Phase 6 calibration, time stability and uncertainty review on development OOS. Add checkpointed diagnostics and portable .bat. Do not open final test or auto-lock winner.
 
-What has been investigated: Baseline/DATA-V1 artifacts, causal EWMA updates, prior-day residual windows, SciPy fit/quantile behavior, two-piece distribution math, output integrity and resume states.
+What has been investigated: Completed 1m/5m upstream checkpoints, prediction schemas, fit history, existing OOS scores and documented phase gates.
 
-What has been implemented: Phase 0–3 data/baseline foundation, nine phase 4 candidates and Phase 5 walk-forward runner. It records model fits/failures, forecast bands, paired metrics, lineage and checkpoints after each fit/day; .bat runs preflight and both timeframes.
+What has been implemented: Phase 6 reads only completed development artifacts; computes equal-weight quantile loss, coverage/exceedance, interval widths, year scores, within-session independence, PIT histogram and bootstrap paired differences versus empirical EWMA. It checkpoints per day and resumes. No winner is automatically declared.
 
-Files touched this task: distributions.py, skewed.py, walk_forward.py, distribution_fit_v2.json, walk_forward_v1.json, run_distribution_walkforward.bat, test_skewed.py, test_walk_forward.py, README.md, docs/research_plan.md, PROCESS.md. Baseline code/config/outputs untouched.
+Files touched this task: selection.py, selection_v1.json, run_selection.bat, test_selection.py, README.md, docs/research_plan.md, PROCESS.md. Baseline and distribution code/config/outputs untouched.
 
 Pre-existing user changes: Git worktree was clean before this task. Local raw CSV and user-generated outputs/data_v1/ were preserved and remain ignored by Git.
 
-Tests already run: 28 unittest tests, bounded 120-observation in-sample numerical smoke with all nine candidates on 1m and 5m, plus `.bat check` on real DATA-V1. No full fit or OOS selection run.
+Tests already run: 31 unittest tests; run_selection.bat check; bounded two-day real-data selection smoke per timeframe with resume. No full Phase 6 run or final-test access.
 
-Experiment ID: DISTRIBUTION-WF-V1 (not started); fit policy DISTRIBUTION-FIT-V2. BASELINE-V1 artifacts remain available.
+Experiment ID: SELECTION-V1 (full user-run pending); upstream DISTRIBUTION-WF-V1 and BASELINE-V1 complete.
 
-Latest checkpoint: DISTRIBUTION-WF-V1 not created; BASELINE-V1 completed checkpoints remain at outputs/baseline_v1/<timeframe>/latest.json.
+Latest checkpoint: DISTRIBUTION-WF-V1 complete 748/748 per timeframe; official SELECTION-V1 checkpoint not yet created.
 
-Best checkpoint: N/A before development OOS selection; paired ranking does not imply a selected winner.
+Best checkpoint: N/A; no winner lock. Paired ranking is descriptive.
 
-Can resume: VERIFIED in synthetic interrupted mid-refit and after orphan prediction scenarios; real user-run resume NOT VERIFIED until artifacts arrive.
+Can resume: Phase 6 bounded real-data resume 1→2 days VERIFIED; full user-run resume NOT VERIFIED until artifacts arrive.
 
 Known issue: User confirmed bar-start timestamps. Source timezone and rollover metadata remain absent. Original DATA-V1 config/manifest retain the earlier unverified timestamp label to preserve hashes.
 
-Next recommended action: User runs run_distribution_walkforward.bat after git pull and pip install -e ., retaining outputs/data_v1/; then return outputs/distribution_wf_v1/ for integrity check and Phase 6 OOS analysis.
+Next recommended action: User runs run_selection.bat after git pull/pip install -e ., retaining the completed DATA-V1, BASELINE-V1 and DISTRIBUTION-WF-V1 directories; then return outputs/selection_v1/ for integrity and model-selection review.
 
 Do NOT: Use 2025–2026-07-17 for model/parameter selection; do not run full fitting/backtest locally or rewrite versioned DATA-V1 artifacts.
 
-Waiting for user action on: Official .bat run and returned artifact transfer. Rollover and source timezone metadata can be supplied later.
+Waiting for user action on: Official Phase 6 .bat run and returned selection artifacts. Rollover and source timezone metadata can be supplied later.
 ```
 
 AI mới phải đọc phần này trước khi tiếp tục.
@@ -2011,20 +2049,20 @@ AI mới phải đọc phần này trước khi tiếp tục.
 # 54. CURRENT CHECKPOINT STATUS
 
 ```text
-Experiment: DISTRIBUTION-WF-V1 user-run pending; BASELINE-V1 completed separately
-Run: DISTRIBUTION-WF-V1-1m and DISTRIBUTION-WF-V1-5m
+Experiment: SELECTION-V1 full user-run pending; upstream DISTRIBUTION-WF-V1 and BASELINE-V1 complete
+Run: SELECTION-V1-1m and SELECTION-V1-5m
 
-Latest checkpoint: outputs/distribution_wf_v1/<timeframe>/latest.json after user starts; currently absent
-Created: Not yet
-Progress: 0/748 development days per timeframe at successful preflight on 2026-09-23.
+Latest checkpoint: outputs/selection_v1/<timeframe>/latest.json after user starts; currently absent
+Created: Not yet for official run
+Progress: 0/748 development days per timeframe at successful preflight on 2026-09-23. Upstream distribution checkpoints are complete 748/748.
 
 Best checkpoint: N/A
 Metric: N/A
 Value: N/A
 
-Resume status: Synthetic mid-refit and orphan-day resume VERIFIED; user-run NOT VERIFIED.
+Resume status: Phase 6 bounded real-data 1→2 day resume VERIFIED; full user-run NOT VERIFIED.
 
-Last successful resume test: 2026-09-23, synthetic mid-refit and orphan-day recovery. BASELINE-V1 remains complete and artifact-verified at outputs/baseline_v1/<timeframe>/latest.json.
+Last successful resume test: 2026-09-23, bounded two-day Phase 6 real-data smoke per timeframe. BASELINE-V1 and DISTRIBUTION-WF-V1 remain complete and artifact-verified.
 ```
 
 ---
@@ -2037,7 +2075,9 @@ Last successful resume test: 2026-09-23, synthetic mid-refit and orphan-day reco
 [x] Validate completed BASELINE-V1 1m/5m checkpoints, predictions and metrics.
 [x] Approve and locally test phase 4A fitting/quantile library; no full OOS run yet.
 [x] Implement and locally test phase 4B skewed families/mixture-3 and phase 5 checkpointed OOS runner.
-[ ] User runs run_distribution_walkforward.bat; inspect returned artifacts and evaluate paired development OOS performance.
+[x] User ran run_distribution_walkforward.bat; checkpoints, prediction hashes and summaries validated for 1m/5m.
+[x] Implement Phase 6 diagnostics runner and bounded validation without opening final test.
+[ ] User runs run_selection.bat; inspect report and discuss model locks before Phase 7/final test.
 ```
 
 Danh sách này không phải authorization để code.

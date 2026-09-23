@@ -1,0 +1,9 @@
+{
+  "experiment_id": "SELECTION-V1",
+  "reference_model": "empirical_ewma",
+  "block_days": 5,
+  "bootstrap_replicates": 2000,
+  "bootstrap_seed": 20260923,
+  "pit_bins": 10,
+  "final_test_start": 20250101
+}
