@@ -22,7 +22,13 @@ python -m distributional_bands.cli audit
 
 ## Phase 3: baseline development walk-forward
 
-Sau khi `outputs/data_v1/` đã có đủ hai file mẫu và `manifest.json`, chạy `run_baseline.bat` trên máy Windows dùng để xử lý job dài. Cần mang theo repository và thư mục `outputs/data_v1/`; nếu chỉ có raw CSV, chạy `run_prepare.bat` trên máy đó trước.
+Trên máy Windows chạy job, dùng Python 3.11 trở lên và cài dependency từ repository:
+
+```powershell
+python -m pip install -e .
+```
+
+Sau khi `outputs/data_v1/` đã có đủ hai file mẫu và `manifest.json`, chạy `run_baseline.bat`. Cần mang theo repository và thư mục `outputs/data_v1/`; nếu chỉ có raw CSV, chạy `run_prepare.bat` trên máy đó trước. Script kiểm tra môi trường và yêu cầu ít nhất 2 GiB dung lượng đĩa trống trước khi chạy.
 
 Script chạy lần lượt 1m và 5m, tự nhận checkpoint hợp lệ trong `outputs/baseline_v1/<timeframe>/latest.json` và tiếp tục từ ngày kế tiếp. Dự báo được lưu theo ngày trong `predictions/`; `metrics.json` chỉ có sau khi job hoàn tất. Ngắt job rồi chạy lại cùng lệnh để resume. Dataset, config hoặc code khác với checkpoint sẽ bị từ chối.
 
