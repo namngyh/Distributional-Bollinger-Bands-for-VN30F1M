@@ -1,0 +1,12 @@
+{
+  "policy_id": "DATA-V1",
+  "symbol": "VN30F1M",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "timestamp_convention": "unverified; conservatively assume bar-start labels",
+  "sessions": [
+    {"name": "morning", "start": "09:00:00", "end": "11:29:00"},
+    {"name": "afternoon", "start": "13:00:00", "end": "14:29:00"}
+  ],
+  "five_minute_bars": "require all five source minutes",
+  "rollover_status": "unverified; cross-session returns excluded"
+}

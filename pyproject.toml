@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "distributional-bands-vn30f1m"
+version = "0.1.0"
+description = "Reproducible 1m and 5m distributional band research for VN30F1M"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "pandas>=2.2"]
+
+[project.scripts]
+distributional-bands = "distributional_bands.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
