@@ -224,8 +224,12 @@ def _day_scores(day: int, prediction: pd.DataFrame, config: Phase7AConfig,
         if model == mixture:
             fitted = FittedDistribution(**status["fit"])
             pit = np.asarray(fitted.cdf(actual / prediction["sigma_ewma"].to_numpy(dtype=float)))
-            if not np.isfinite(pit).all() or (pit < 0).any() or (pit > 1).any():
+            # EM weights can sum to 1 + a few ulps. Preserve genuine invalid CDFs.
+            tolerance = 1e-12
+            if (not np.isfinite(pit).all() or (pit < -tolerance).any()
+                    or (pit > 1 + tolerance).any()):
                 raise ValueError(f"Invalid PIT for {model} on {day}")
+            pit = np.clip(pit, 0.0, 1.0)
             model_result["pit_histogram"] = np.histogram(pit, bins=np.linspace(0, 1, 11))[0].tolist()
             model_result["pit_sum"] = float(pit.sum())
         result["models"][model] = model_result

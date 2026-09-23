@@ -14,8 +14,11 @@ import pandas as pd
 
 from distributional_bands.data import sha256_file
 from distributional_bands.distributions import FitError, FittedDistribution
-from distributional_bands.phase7a import (Phase7AConfig, _empirical_quantiles,
-                                          run)
+from distributional_bands.phase7a import (Phase7AConfig, _day_scores,
+                                          _empirical_quantiles, run)
+from distributional_bands.phase7a_migrate import (LEGACY_PHASE7A_SHA256,
+                                                  migrate_trial)
+from distributional_bands import phase7a_migrate as migration_module
 from distributional_bands.phase7a_report import _model_stats, run as report_run
 
 
@@ -127,6 +130,103 @@ class Phase7ATests(unittest.TestCase):
             self.assertEqual(result["fit_failures"], 1)
             daily = json.loads((root / "failed/daily/20220103.json").read_text(encoding="utf-8"))
             self.assertEqual(set(daily["models"]), {"empirical_ewma"})
+
+    def test_pit_roundoff_is_clamped_but_large_error_is_rejected(self) -> None:
+        config = Phase7AConfig.from_json(self.config)
+        prediction = {"target_log_return": [19.0], "sigma_ewma": [1.0],
+                      "session": ["morning"]}
+        for model in ("empirical_ewma", "normal_mixture_3"):
+            for level in config.central_coverages:
+                tag = str(round(level * 1000))
+                prediction[f"{model}_q_low_{tag}"] = [-1.0]
+                prediction[f"{model}_q_high_{tag}"] = [1.0]
+        frame = pd.DataFrame(prediction)
+        fitted = _fake_fit("normal_mixture_3", np.ones(80), None)
+        fitted.parameters["weight_1"] += 4e-15
+        status = {"status": "success", "fit": fitted.as_dict()}
+        daily = _day_scores(20221116, frame, config, "normal_mixture_3", status)
+        self.assertEqual(daily["models"]["normal_mixture_3"]["pit_sum"], 1.0)
+        self.assertEqual(sum(daily["models"]["normal_mixture_3"]["pit_histogram"]), 1)
+        fitted.parameters["weight_1"] += 1e-8
+        with self.assertRaisesRegex(ValueError, "Invalid PIT"):
+            _day_scores(20221116, frame, config, "normal_mixture_3",
+                        {"status": "success", "fit": fitted.as_dict()})
+
+    def test_pit_migration_preserves_checkpoint_and_resumes(self) -> None:
+        for complete in (False, True):
+            with self.subTest(complete=complete), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                sample, manifest = _fixture(root, "1m")
+                output = root / "trial"
+                with patch("distributional_bands.phase7a.fit_distribution", side_effect=_fake_fit):
+                    run("1m", 30, self.config, self.fit_config, sample,
+                        manifest, output, max_days=None if complete else 1)
+                paths = [output / "run_manifest.json", output / "latest.json"]
+                if complete:
+                    paths.append(output / "metrics.json")
+                original = json.loads((output / "latest.json").read_text(encoding="utf-8"))
+                for path in paths:
+                    document = json.loads(path.read_text(encoding="utf-8"))
+                    document["signature"]["source_sha256"]["phase7a.py"] = LEGACY_PHASE7A_SHA256
+                    path.write_text(json.dumps(document), encoding="utf-8")
+                before = {name: sha256_file(output / name)
+                          for name in ("predictions/20220103.csv", "daily/20220103.json")}
+                args = ("1m", 30, self.config, self.fit_config, sample, manifest, output)
+                self.assertEqual(migrate_trial(*args, check_only=True), "pending")
+                self.assertFalse((output / "pit_boundary_migration_v1.json").exists())
+                if not complete:
+                    original_atomic = migration_module._atomic_json
+
+                    def interrupted_write(path: Path, document: dict) -> None:
+                        if path.name == "latest.json":
+                            raise RuntimeError("synthetic interruption during migration")
+                        original_atomic(path, document)
+
+                    with patch.object(migration_module, "_atomic_json",
+                                      side_effect=interrupted_write):
+                        with self.assertRaisesRegex(RuntimeError, "synthetic interruption"):
+                            migrate_trial(*args)
+                    self.assertEqual(migrate_trial(*args, check_only=True), "pending")
+                self.assertEqual(migrate_trial(*args), "migrated")
+                self.assertEqual(migrate_trial(*args), "current")
+                self.assertEqual({name: sha256_file(output / name) for name in before}, before)
+                backup = output / "pit_boundary_migration_v1"
+                self.assertEqual(json.loads((backup / "latest.json").read_text(encoding="utf-8"))
+                                 ["signature"]["source_sha256"]["phase7a.py"],
+                                 LEGACY_PHASE7A_SHA256)
+                with patch("distributional_bands.phase7a.fit_distribution", side_effect=_fake_fit):
+                    result = run("1m", 30, self.config, self.fit_config, sample,
+                                 manifest, output, max_days=1)
+                self.assertEqual(result["completed_days"], 6 if complete else 2)
+                self.assertEqual(original["prediction_sha256"]["20220103"],
+                                 json.loads((output / "latest.json").read_text(encoding="utf-8"))
+                                 ["prediction_sha256"]["20220103"])
+                if not complete:
+                    with patch("distributional_bands.phase7a.fit_distribution",
+                               side_effect=_fake_fit):
+                        self.assertTrue(run("1m", 30, self.config, self.fit_config,
+                                            sample, manifest, output)["complete"])
+                    self.assertEqual(migrate_trial(*args, check_only=True), "current")
+
+    def test_pit_migration_rejects_corrupt_artifacts_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            sample, manifest = _fixture(root, "1m")
+            output = root / "trial"
+            with patch("distributional_bands.phase7a.fit_distribution", side_effect=_fake_fit):
+                run("1m", 30, self.config, self.fit_config, sample,
+                    manifest, output, max_days=1)
+            for name in ("run_manifest.json", "latest.json"):
+                path = output / name
+                document = json.loads(path.read_text(encoding="utf-8"))
+                document["signature"]["source_sha256"]["phase7a.py"] = LEGACY_PHASE7A_SHA256
+                path.write_text(json.dumps(document), encoding="utf-8")
+            with (output / "daily/20220103.json").open("a", encoding="utf-8") as stream:
+                stream.write(" ")
+            with self.assertRaisesRegex(ValueError, "Corrupt daily"):
+                migrate_trial("1m", 30, self.config, self.fit_config,
+                              sample, manifest, output)
+            self.assertFalse((output / "pit_boundary_migration_v1.json").exists())
 
     def test_report_stats_keep_coverage_and_score_on_same_bars(self) -> None:
         row = {"day": 20220103, "n": 10, "models": {"candidate": {

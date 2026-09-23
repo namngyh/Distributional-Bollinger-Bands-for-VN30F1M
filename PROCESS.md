@@ -213,13 +213,13 @@ Worker: None
 CLI: python -m distributional_bands.cli audit|prepare
 Baseline: python -m distributional_bands.baseline --timeframe 1m|5m ...; run_baseline.bat for full development run
 Training: `distributional_bands.distributions.fit_distribution`; completed development walk-forward via `distributional_bands.walk_forward` and `run_distribution_walkforward.bat`
-Analysis: `distributional_bands.selection` via `run_selection.bat` (user-run verified); Phase 7A via `distributional_bands.phase7a`, `phase7a_report` and `run_phase7a.bat` (full user-run pending)
+Analysis: `distributional_bands.selection` via `run_selection.bat` (user-run verified); Phase 7A via `distributional_bands.phase7a`, `phase7a_migrate`, `phase7a_report` and `run_phase7a.bat` (partial user-run, full report pending)
 Backtest: Not implemented
 Tests: python -m unittest discover -s tests -v
 Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v1.json; configs/distribution_fit_v2.json; configs/walk_forward_v1.json; configs/selection_v1.json; configs/phase7a_v1.json
-Checkpoints: BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 complete; outputs/phase7a_v1/<timeframe>/hl30|hl120/latest.json pending full user-run
-Experiments: BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 user-run verified; PHASE7A-V1 locally tested, full user-run pending
-Outputs: outputs/data_v1/, baseline_v1/, distribution_wf_v1/, selection_v1/ verified; phase7a_v1/ pending
+Checkpoints: BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 complete; Phase 7A 1m-HL30 748/748, 1m-HL120 217/748, 5m not started
+Experiments: BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 user-run verified; PHASE7A-V1 partial and repaired, full report pending
+Outputs: outputs/data_v1/, baseline_v1/, distribution_wf_v1/, selection_v1/ verified; phase7a_v1/ partial with verified 1m checkpoints
 Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
 
@@ -236,7 +236,7 @@ Build and compare 1m/5m distributional bands, prioritizing out-of-sample forecas
 ## Current task
 
 ```text
-Phase 7A half-life sensitivity package implemented for approved 30/60/120 grid. Next: user runs `run_phase7a.bat`; analyze tuning and retrospective stability before calibration Phase 7B or parameter lock.
+Phase 7A user run is partial. A PIT roundoff error at 1m-HL120 on 2022-11-16 was fixed with a verified, resumable metadata migration. Next: user resumes `run_phase7a.bat`; analyze tuning and retrospective stability before Phase 7B or parameter lock.
 ```
 
 ## Current state
@@ -258,7 +258,7 @@ DONE
 Current:
 
 ```text
-TESTING — Phase 3/5/6 user-run artifacts VERIFIED. Phase 7A code has 37 passing tests, real preflight and bounded one-to-two-day smoke; full Phase 7A user-run NOT VERIFIED.
+TESTING — Phase 3/5/6 user-run artifacts VERIFIED. Phase 7A 1m-HL30 complete (748/748), 1m-HL120 partial (217/748 after bounded post-fix resume), 5m trials not started. Full Phase 7A user run/report NOT VERIFIED.
 ```
 
 ## Last known working state
@@ -266,15 +266,15 @@ TESTING — Phase 3/5/6 user-run artifacts VERIFIED. Phase 7A code has 37 passin
 ```text
 Branch: main (tracks origin/main)
 Commit: See `git log -1`; original remote base is ca2d150.
-Command: run_selection.bat check; recompute SELECTION-V1 reports from daily checkpoints; python -m unittest discover -s tests -q; run_phase7a.bat check; bounded real Phase 7A mixture fit and resume per timeframe; 60m empirical/sigma reconciliation.
-Result: SELECTION-V1 complete 748/748 per timeframe and reports match daily checkpoints. 37 tests passed; Phase 7A preflight 0/748 all four trials; 1m HL120 and 5m HL30 smoke fit and resume to day two. 60m sigma and empirical band differences ~1e-16 against BASELINE-V1 on first OOS day. No full Phase 7A run or final-test use.
+Command: python -m unittest discover -s tests -q; real orphan-day PIT recomputation; read-only migration checks; one-time metadata migration on 1m-HL30/HL120; bounded real `--max-days 1` resume on HL120; read-only checkpoint checks.
+Result: 40 tests passed. Real PIT at 2022-11-16 10:46 exceeded 1 by 4e-15 because EM weights summed to 1+4e-15. Old 1m-HL30 748/748 and HL120 216/748 artifact hashes verified; original metadata backed up and signatures migrated. HL120 resumed exactly one day to 217/748, reusing the orphan prediction CSV; both checkpoint checks pass. No full Phase 7A or final-test run by AI.
 Date: 2026-09-23
 ```
 
 ## Current modifications
 
 ```text
-Phase 7A adds phase7a.py, phase7a_report.py, phase7a_v1.json, run_phase7a.bat, tests and docs. DATA-V1, baseline, distribution and selection code/config/completed checkpoints remain unchanged. Raw CSV and outputs are ignored by Git.
+Phase 7A PIT patch changes phase7a.py, adds phase7a_migrate.py, updates run_phase7a.bat/tests/docs. Original checkpoint metadata is retained in pit_boundary_migration_v1/ within each migrated trial. Prediction/daily artifacts and fit state were not re-fitted or overwritten. DATA-V1 and Phase 3-6 artifacts remain unchanged; outputs are ignored by Git.
 ```
 
 ## Blockers
@@ -1490,13 +1490,14 @@ Validation: run_selection.bat check verified daily hashes for 1m/5m; recomputed 
 ```text
 Experiment ID: PHASE7A-V1
 Run IDs: PHASE7A-V1-<timeframe>-HL30 / HL120
-Checkpoint: outputs/phase7a_v1/<timeframe>/hl<half_life>/latest.json (full user-run pending)
-Predictions: outputs/phase7a_v1/<timeframe>/hl<half_life>/predictions/ (pending)
-Daily diagnostics: outputs/phase7a_v1/<timeframe>/hl<half_life>/daily/ (pending)
+Checkpoint: outputs/phase7a_v1/<timeframe>/hl<half_life>/latest.json; 1m-HL30 748/748 complete, 1m-HL120 217/748 partial, 5m absent
+Predictions: outputs/phase7a_v1/<timeframe>/hl<half_life>/predictions/ (1m checkpoints verified)
+Daily diagnostics: outputs/phase7a_v1/<timeframe>/hl<half_life>/daily/ (1m checkpoints verified)
 Reports: outputs/phase7a_v1/<timeframe>/report.json (pending)
 Config: configs/phase7a_v1.json; fit policy configs/distribution_fit_v2.json
 Anchor: verified SELECTION-V1 / DISTRIBUTION-WF-V1 / BASELINE-V1 HL60; not rerun.
-Validation: 37 tests, read-only preflight 0/748 each trial, bounded 1m HL120 / 5m HL30 real fit and resume to day two. Full user-run pending.
+PIT migration: each migrated 1m trial retains old metadata in pit_boundary_migration_v1/ and lineage in pit_boundary_migration_v1.json; no prediction/daily bytes changed.
+Validation: 40 tests; old 1m checkpoint hashes validated before migration; 1m-HL120 real 216→217 day bounded resume and post-migration hashes checked. Full user-run/report pending.
 ```
 
 ```text
@@ -1724,6 +1725,7 @@ Ví dụ:
 - DATA-V1 intentionally excludes 11:30, 14:30, 14:45 and all cross-session targets.
 - A 5m bar requires all five source minutes; partial buckets must not enter forecasts.
 - GH/NIG fits can reach parameter bounds and Normal Mixture EM can be weakly identified; record convergence/bound diagnostics and never silently substitute another law.
+- At extreme residuals, an EM mixture CDF can round to 1 + a few ulps because component weights sum slightly above one; guard only numerical PIT boundary error, never drop the tail observation or accept a materially invalid CDF.
 - Never use future candle information in signals or fit a distribution with test data.
 - Final test must remain untouched while selecting distributions and parameters.
 - Check checkpoint before restarting future long walk-forward runs.
@@ -1757,6 +1759,22 @@ Affected files: configs/distribution_fit_v1.json, src/distributional_bands/distr
 Checkpoint impact: None; phase 4A produced no long-run checkpoint.
 Experiment impact: No OOS fit or model-selection result was generated.
 Status: FIXED for bounded smoke; MONITOR in full walk-forward.
+```
+
+## ERR-002 — Phase 7A PIT just above one at an extreme 1m return
+
+```text
+Date: 2026-09-23
+Context: User-run 1m-HL120 Phase 7A on 2022-11-16; checkpoint 216/748 through 2022-11-15.
+Symptom: Invalid PIT for normal_mixture_3 on 20221116 after successful fit.
+Root cause: Recorded return 0.0377526 / sigma 0.001978 gave z~19.09. EM weights summed to 1.000000000000004, yielding CDF 1.000000000000004; strict [0,1] comparison raised.
+Incorrect approach: Delete the tail bar, rerun all fitting, suppress all invalid CDFs, or edit a checkpoint signature without verifying and backing up every artifact.
+Correct solution: Tolerate only 1e-12 boundary roundoff and clip to [0,1]; reject larger/nonfinite violations. Migrate only the exact known legacy source signature after validating all checkpointed files, with original metadata backup and migration record.
+Prevention rule: Test extreme residuals and interrupted metadata migration; retain orphan prediction CSV for deterministic reuse.
+Affected files: phase7a.py, phase7a_migrate.py, run_phase7a.bat, test_phase7a.py, README.md.
+Checkpoint impact: 1m-HL30 748 days and 1m-HL120 216 days preserved; bounded real resume advanced HL120 to 217 days. No prediction/daily bytes or fit state rewritten.
+Experiment impact: Full Phase 7A comparison delayed; no winner selection or final-test impact.
+Status: FIXED for the observed day; MONITOR for full user-run.
 ```
 
 Template:
@@ -2017,6 +2035,17 @@ Rollback plan: Prior commit 012a99e. Revert only new Phase 7A files/docs if nece
 Remaining: User runs run_phase7a.bat and returns outputs/phase7a_v1/. Assess conditional calibration and decide whether Phase 7B past-only correction is warranted. Source timezone/rollover remain unknown.
 ```
 
+## 2026-09-23 — Phase 7A PIT boundary repair and checkpoint migration
+
+```text
+Status: PATCH TESTED; 1m-HL30 user-run 748/748 checkpoint verified; 1m-HL120 user-run 216/748 migrated and boundedly resumed to 217/748; 5m trials pending.
+Cause: On 2022-11-16 at 10:46, target return 0.0377526 / sigma 0.001978 gave standardized residual ~19.09. Normal Mixture 3 EM weights summed to 1.000000000000004; CDF/PIT rounded to 1.000000000000004 and strict PIT bound raised. Fit succeeded; data outlier was not removed or relabeled.
+Change: PIT roundoff within 1e-12 is clipped to [0,1], larger/nonfinite violations still fail. One-time migration accepts only the exact known old phase7a.py source hash and otherwise identical signature, verifies every checkpointed prediction/daily hash, backs up original metadata and records old/new signatures; .bat runs migration before resume. Check mode remains read-only.
+Validation: 40 unittests passed including numeric guard, corrupt-artifact rejection, complete/incomplete migration, simulated migration interruption, and resume. Real orphan-day PIT recomputation passed all 238 bars; the existing orphan forecast CSV was reused unchanged. Official 1m-HL30 and HL120 metadata migrated after artifact verification; HL120 advanced exactly one day to 217/748 and both checkpoint checks passed. No full run or 2025+ use by AI.
+Rollback: Original metadata is in each migrated trial's pit_boundary_migration_v1/ and the old source at commit a5d2664; do not restore/remove artifacts without an explicit plan. New code preserves old daily/prediction bytes and fit state.
+Remaining: User pulls updated code and reruns run_phase7a.bat on compute machine. If machine has pre-migration outputs, .bat migrates them; if it has the already migrated workspace, migration is a no-op. Inspect full reports only after four trials finish.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -2050,37 +2079,37 @@ Không dump toàn bộ terminal log.
 Khi đổi AI hoặc kết thúc session dang dở:
 
 ```text
-Current task: Hand off Phase 7A approved half-life trials for user execution and subsequent calibration/model-lock discussion.
+Current task: Hand off Phase 7A PIT repair and checkpoint-safe resume for user execution; subsequent calibration/model-lock discussion only after complete reports.
 
-Current status: Phase 3 baseline, Phase 5 distribution and Phase 6 diagnostics user-run artifacts VERIFIED. Phase 7A IMPLEMENTED and locally TESTED; full Phase 7A user-run NOT VERIFIED.
+Current status: Phase 3 baseline, Phase 5 distribution and Phase 6 diagnostics user-run artifacts VERIFIED. Phase 7A 1m-HL30 complete 748/748; 1m-HL120 partial 217/748 after repair; 5m not started. Full Phase 7A report NOT VERIFIED.
 
 Approved scope: User approved Empirical EWMA reference, Mixture 3 1m and Mixture 2 5m shortlist; then explicitly approved Phase 7A EWMA half-life grid 30/60/120 minutes, keeping fit window 60 days and refit every 5 days. Reuse 60m verified artifacts, create only 30/120 new trials, checkpoint and .bat, report 2022-23 tuning plus retrospective 2024. Do not open final test or auto-lock winner.
 
-What has been investigated: Verified Phase 6 complete reports and daily hashes; small but sometimes statistically detectable pinball gains, conditional exceedance clustering, baseline calibration trade-offs. Existing causal EWMA and residual fit code checked for reuse.
+What has been investigated: Phase 7A stopped on 2022-11-16 when an extreme 1m return made the Mixture 3 CDF exceed 1 by ~4e-15; fit was successful. Verified original checkpoint hashes, the orphan forecast CSV and the old source signature.
 
-What has been implemented: New Phase 7A trial runner for HL30/120 per timeframe, with Empirical EWMA daily prior-60-day quantiles and shortlist-mixture fit every five days on prior-60-day residuals; daily checkpoint, fit status/history, forecast CSV, score/PIT JSON. Separate report reuses 60m anchor and compares all six configurations on 2022-23, with 2024 retrospective diagnostics and bootstrap. No automatic winner.
+What has been implemented: Existing Phase 7A runner plus PIT tolerance of 1e-12 only at probability boundaries, a one-time verified metadata migration with original backup/provenance record and interruption-safe resume, and batch integration. No distribution refit, forecast rewrite, auto-winner or final-test access.
 
-Files touched this task: phase7a.py, phase7a_report.py, phase7a_v1.json, run_phase7a.bat, test_phase7a.py, README.md, docs/research_plan.md, PROCESS.md. Phase 3-6 code/config/outputs untouched.
+Files touched this repair: phase7a.py, new phase7a_migrate.py, run_phase7a.bat, test_phase7a.py, README.md, PROCESS.md. Phase 3-6 code/config/outputs untouched; original Phase 7A metadata backed up inside ignored outputs.
 
-Pre-existing user changes: Git worktree was clean before this task. Local raw CSV and user-generated outputs/data_v1/ were preserved and remain ignored by Git.
+Pre-existing user changes: Git worktree was clean before this repair. Local raw CSV and all user-generated outputs were preserved; only approved Phase 7A metadata signatures were migrated after backup, and one bounded forecast day was completed.
 
-Tests already run: 37 unittest tests; run_phase7a.bat check; bounded real 1m HL120 and 5m HL30 first-day fits with one-day resume each; HL60 sigma/Empirical band first-day reconciliation ~1e-16 against BASELINE-V1. No full Phase 7A run or final-test use.
+Tests already run: 40 unittest tests; real 2022-11-16 orphan PIT recomputation (238 bars); read-only old-checkpoint migration checks; migrated 1m-HL30/HL120 metadata; bounded real HL120 216→217 day resume; read-only post-migration checkpoint checks and run_phase7a.bat check. No full Phase 7A run or final-test use.
 
-Experiment ID: PHASE7A-V1 (full user-run pending); upstream SELECTION-V1, DISTRIBUTION-WF-V1 and BASELINE-V1 complete.
+Experiment ID: PHASE7A-V1 (partial user-run, full report pending); upstream SELECTION-V1, DISTRIBUTION-WF-V1 and BASELINE-V1 complete.
 
-Latest checkpoint: Upstream SELECTION-V1 complete 748/748 per timeframe; official PHASE7A-V1 not yet created. Bounded smoke checkpoints at outputs/phase7a_smoke_v*/ ignored.
+Latest checkpoint: outputs/phase7a_v1/1m/hl30/latest.json complete 748/748; outputs/phase7a_v1/1m/hl120/latest.json partial 217/748 through 2022-11-16. 5m Phase 7A trials absent. Original metadata backups and migration records exist for both 1m trials.
 
 Best checkpoint: N/A; no half-life or model winner locked.
 
-Can resume: Phase 7A synthetic interruption/resume and bounded real 1→2 day resume VERIFIED; full user-run resume NOT VERIFIED until artifacts arrive.
+Can resume: YES for both 1m trials; post-fix real 1m-HL120 216→217 day resume VERIFIED, without rewriting the orphan prediction. Full 1m-HL120 and 5m runs still pending.
 
-Known issue: User confirmed bar-start timestamps. Source timezone and rollover metadata remain absent. Original DATA-V1 config/manifest retain the earlier unverified timestamp label to preserve hashes.
+Known issue: User confirmed bar-start timestamps. Source timezone and rollover metadata remain absent. Extreme recorded 2022-11-16 return was not removed. Original DATA-V1 config/manifest retain the earlier unverified timestamp label to preserve hashes.
 
-Next recommended action: User runs run_phase7a.bat after git pull/pip install -e ., retaining completed DATA-V1 and Phase 3-6 outputs; then returns outputs/phase7a_v1/ for integrity, OOS and calibration review.
+Next recommended action: User pulls updated code and runs run_phase7a.bat check, then run_phase7a.bat on compute machine, retaining all outputs. Batch migration is idempotent and backs up original metadata. Return complete outputs/phase7a_v1/ for integrity/OOS/calibration review.
 
 Do NOT: Use 2025–2026-07-17 for model/parameter selection; do not run full fitting/backtest locally or rewrite versioned DATA-V1 artifacts.
 
-Waiting for user action on: Official Phase 7A .bat run and returned trial artifacts. Rollover and source timezone metadata can be supplied later.
+Waiting for user action on: Resume full Phase 7A .bat and return completed trial artifacts. Rollover and source timezone metadata can be supplied later.
 ```
 
 AI mới phải đọc phần này trước khi tiếp tục.
@@ -2090,20 +2119,20 @@ AI mới phải đọc phần này trước khi tiếp tục.
 # 54. CURRENT CHECKPOINT STATUS
 
 ```text
-Experiment: PHASE7A-V1 full user-run pending; upstream Phase 3/5/6 complete
+Experiment: PHASE7A-V1 partial user-run; upstream Phase 3/5/6 complete
 Run: PHASE7A-V1-<timeframe>-HL30 and -HL120 (1m/5m); 60-minute anchor reused
 
-Latest checkpoint: outputs/phase7a_v1/<timeframe>/hl30|hl120/latest.json after user starts; currently absent
-Created: Not yet for official run
-Progress: 0/748 development days for each of four trials at successful preflight on 2026-09-23. Upstream Phase 3/5/6 checkpoints complete.
+Latest checkpoint: outputs/phase7a_v1/1m/hl30/latest.json (complete) and 1m/hl120/latest.json (partial)
+Created: User-run, then safely migrated for PIT boundary fix on 2026-09-23; old metadata retained in pit_boundary_migration_v1/.
+Progress: 1m-HL30 748/748; 1m-HL120 217/748 through 2022-11-16; 5m-HL30/HL120 0/748 and not started. Upstream Phase 3/5/6 complete.
 
 Best checkpoint: N/A
 Metric: N/A
 Value: N/A
 
-Resume status: Phase 7A synthetic and bounded real-data 1→2 day resume VERIFIED; full user-run NOT VERIFIED.
+Resume status: Real Phase 7A 1m-HL120 216→217 day post-migration resume VERIFIED; full four-trial run NOT VERIFIED.
 
-Last successful resume test: 2026-09-23, bounded 1m HL120 and 5m HL30 two-day real-data smoke. BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 remain complete and artifact-verified.
+Last successful resume test: 2026-09-23, official 1m-HL120 bounded one-day resume reused the prior orphan CSV and checkpointed 2022-11-16. BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 remain complete and artifact-verified.
 ```
 
 ---
@@ -2120,7 +2149,8 @@ Last successful resume test: 2026-09-23, bounded 1m HL120 and 5m HL30 two-day re
 [x] Implement Phase 6 diagnostics runner and bounded validation without opening final test.
 [x] User ran run_selection.bat; verified 748/748 days, daily hashes and reports on both timeframes.
 [x] User approved Phase 7A shortlist and locked 30/60/120 grid; implementation and bounded validation complete.
-[ ] User runs run_phase7a.bat; inspect reports and decide whether a Phase 7B causal calibration correction is needed.
+[x] Diagnose 1m-HL120 PIT roundoff, implement guarded boundary handling, migrate verified checkpoints and test bounded real resume.
+[ ] User resumes run_phase7a.bat; inspect complete reports and decide whether a Phase 7B causal calibration correction is needed.
 ```
 
 Danh sách này không phải authorization để code.
