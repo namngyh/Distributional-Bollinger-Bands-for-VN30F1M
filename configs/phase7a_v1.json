@@ -1,0 +1,21 @@
+{
+  "experiment_id": "PHASE7A-V1",
+  "prediction_start": 20220101,
+  "tuning_end_date": 20231231,
+  "last_development_date": 20241231,
+  "final_test_start": 20250101,
+  "half_lives_minutes": [30, 60, 120],
+  "anchor_half_life_minutes": 60,
+  "rolling_window_minutes": 240,
+  "fit_window_days": 60,
+  "refit_every_days": 5,
+  "central_coverages": [0.9, 0.95, 0.975, 0.99, 0.995],
+  "shortlist": {
+    "1m": "normal_mixture_3",
+    "5m": "normal_mixture_2"
+  },
+  "baseline_model": "empirical_ewma",
+  "bootstrap_block_days": 5,
+  "bootstrap_replicates": 2000,
+  "bootstrap_seed": 20260923
+}

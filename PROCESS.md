@@ -213,13 +213,13 @@ Worker: None
 CLI: python -m distributional_bands.cli audit|prepare
 Baseline: python -m distributional_bands.baseline --timeframe 1m|5m ...; run_baseline.bat for full development run
 Training: `distributional_bands.distributions.fit_distribution`; completed development walk-forward via `distributional_bands.walk_forward` and `run_distribution_walkforward.bat`
-Analysis: `distributional_bands.selection`; full Phase 6 diagnostics via `run_selection.bat` (user-run pending)
+Analysis: `distributional_bands.selection` via `run_selection.bat` (user-run verified); Phase 7A via `distributional_bands.phase7a`, `phase7a_report` and `run_phase7a.bat` (full user-run pending)
 Backtest: Not implemented
 Tests: python -m unittest discover -s tests -v
-Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v1.json; configs/distribution_fit_v2.json; configs/walk_forward_v1.json; configs/selection_v1.json
-Checkpoints: outputs/baseline_v1/<timeframe>/latest.json and outputs/distribution_wf_v1/<timeframe>/latest.json complete; outputs/selection_v1/<timeframe>/latest.json pending
-Experiments: BASELINE-V1 and DISTRIBUTION-WF-V1 user-run verified; SELECTION-V1 locally tested, full user-run pending
-Outputs: outputs/data_v1/; outputs/baseline_v1/ and outputs/distribution_wf_v1/ verified; outputs/selection_v1/ pending
+Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v1.json; configs/distribution_fit_v2.json; configs/walk_forward_v1.json; configs/selection_v1.json; configs/phase7a_v1.json
+Checkpoints: BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 complete; outputs/phase7a_v1/<timeframe>/hl30|hl120/latest.json pending full user-run
+Experiments: BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 user-run verified; PHASE7A-V1 locally tested, full user-run pending
+Outputs: outputs/data_v1/, baseline_v1/, distribution_wf_v1/, selection_v1/ verified; phase7a_v1/ pending
 Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
 
@@ -236,7 +236,7 @@ Build and compare 1m/5m distributional bands, prioritizing out-of-sample forecas
 ## Current task
 
 ```text
-Phase 6 diagnostics package implemented for completed 1m/5m development OOS runs. Next: full `run_selection.bat` on user's machine and review results before a model-lock decision.
+Phase 7A half-life sensitivity package implemented for approved 30/60/120 grid. Next: user runs `run_phase7a.bat`; analyze tuning and retrospective stability before calibration Phase 7B or parameter lock.
 ```
 
 ## Current state
@@ -258,7 +258,7 @@ DONE
 Current:
 
 ```text
-TESTING — DISTRIBUTION-WF-V1 user-run artifacts VERIFIED. Phase 6 code has 31 passing tests, read-only preflight and bounded real-data smoke; full selection diagnostics NOT RUN.
+TESTING — Phase 3/5/6 user-run artifacts VERIFIED. Phase 7A code has 37 passing tests, real preflight and bounded one-to-two-day smoke; full Phase 7A user-run NOT VERIFIED.
 ```
 
 ## Last known working state
@@ -266,15 +266,15 @@ TESTING — DISTRIBUTION-WF-V1 user-run artifacts VERIFIED. Phase 6 code has 31 
 ```text
 Branch: main (tracks origin/main)
 Commit: See `git log -1`; original remote base is ca2d150.
-Command: completed distribution runner validation on 1m/5m; python -m unittest discover -s tests -v; run_selection.bat check; bounded two-day selection smoke per timeframe.
-Result: 748/748 walk-forward days and all 748 daily prediction hashes validated per timeframe; metrics/fit history matched checkpoints. 31 tests passed; selection preflight 0/748 and two-day smoke/resume passed per timeframe. No full Phase 6 run or final-test access.
+Command: run_selection.bat check; recompute SELECTION-V1 reports from daily checkpoints; python -m unittest discover -s tests -q; run_phase7a.bat check; bounded real Phase 7A mixture fit and resume per timeframe; 60m empirical/sigma reconciliation.
+Result: SELECTION-V1 complete 748/748 per timeframe and reports match daily checkpoints. 37 tests passed; Phase 7A preflight 0/748 all four trials; 1m HL120 and 5m HL30 smoke fit and resume to day two. 60m sigma and empirical band differences ~1e-16 against BASELINE-V1 on first OOS day. No full Phase 7A run or final-test use.
 Date: 2026-09-23
 ```
 
 ## Current modifications
 
 ```text
-Phase 6 adds selection.py, selection_v1.json, run_selection.bat, tests and docs. Baseline, distribution runner, their completed checkpoints and DATA-V1 artifacts remain unchanged. Raw CSV and outputs are ignored by Git.
+Phase 7A adds phase7a.py, phase7a_report.py, phase7a_v1.json, run_phase7a.bat, tests and docs. DATA-V1, baseline, distribution and selection code/config/completed checkpoints remain unchanged. Raw CSV and outputs are ignored by Git.
 ```
 
 ## Blockers
@@ -1480,11 +1480,23 @@ Selection: no winner locked; paired pinball ranking is descriptive only.
 ```text
 Experiment ID: SELECTION-V1
 Run IDs: SELECTION-V1-1m; SELECTION-V1-5m
-Checkpoint: outputs/selection_v1/<timeframe>/latest.json (full user-run pending)
-Daily analyses: outputs/selection_v1/<timeframe>/daily/ (pending)
-Report: outputs/selection_v1/<timeframe>/report.json (pending)
+Checkpoint: outputs/selection_v1/<timeframe>/latest.json (complete 748/748)
+Daily analyses: outputs/selection_v1/<timeframe>/daily/ (748 daily JSON each)
+Report: outputs/selection_v1/<timeframe>/report.json (complete)
 Config: configs/selection_v1.json
-Validation: read-only preflight and bounded two-day smoke only; no full analysis artifact yet.
+Validation: run_selection.bat check verified daily hashes for 1m/5m; recomputed reports exactly matched saved report. Paired bars: 177939 (1m), 34344 (5m). Shortlist not winner lock: Empirical EWMA reference, Mixture 3 1m, Mixture 2 5m; user approved Phase 7A sensitivity.
+```
+
+```text
+Experiment ID: PHASE7A-V1
+Run IDs: PHASE7A-V1-<timeframe>-HL30 / HL120
+Checkpoint: outputs/phase7a_v1/<timeframe>/hl<half_life>/latest.json (full user-run pending)
+Predictions: outputs/phase7a_v1/<timeframe>/hl<half_life>/predictions/ (pending)
+Daily diagnostics: outputs/phase7a_v1/<timeframe>/hl<half_life>/daily/ (pending)
+Reports: outputs/phase7a_v1/<timeframe>/report.json (pending)
+Config: configs/phase7a_v1.json; fit policy configs/distribution_fit_v2.json
+Anchor: verified SELECTION-V1 / DISTRIBUTION-WF-V1 / BASELINE-V1 HL60; not rerun.
+Validation: 37 tests, read-only preflight 0/748 each trial, bounded 1m HL120 / 5m HL30 real fit and resume to day two. Full user-run pending.
 ```
 
 ```text
@@ -1824,6 +1836,20 @@ Revisit conditions: Failure rate is material, paired sample becomes too small, o
 Status: ACTIVE
 ```
 
+## DEC-004 — Phase 7A bounded volatility half-life sensitivity
+
+```text
+Date: 2026-09-23
+Decision: After SELECTION-V1, retain Empirical EWMA as reference and shortlist Mixture 3 for 1m / Mixture 2 for 5m. Test only EWMA half-life 30, 60 and 120 trading minutes; retain 60-day fit window and 5-day refit schedule. Reuse verified 60m artifacts; run only new 30/120 trials. Rank by 2022-23 development OOS pinball and show 2024 as retrospective stability, not a new independent holdout. No automatic winner or final-test access.
+Reason: Diagnose whether volatility responsiveness reduces tail clustering before adding a new calibration mechanism, while limiting trial count and preserving prior results.
+Alternatives considered: Large joint grid of half-life, fit window and refit frequency; immediate quantile correction; refit 60m anchor unnecessarily.
+Trade-offs: Phase 6 shortlist used all 2022-24, so Phase 7A inference remains exploratory despite the 2022-23 ranking / 2024 display. New mixture fits can be slow; use .bat and per-fit/day checkpoints.
+Affected modules: New phase7a.py, phase7a_report.py, phase7a_v1.json, run_phase7a.bat and tests only; existing Phase 3-6 artifacts remain immutable.
+Checkpoint compatibility: Trial signature includes data/config/fit policy/code hashes and exact half-life. No in-place config changes or reuse across unlike trials.
+Revisit conditions: Fit failures, severe 2024 instability, persistent conditional miscalibration or new source rollover/timezone metadata. Phase 7B requires a separate proposal and approval.
+Status: ACTIVE
+```
+
 Template:
 
 ## DEC-XXX — Title
@@ -1976,6 +2002,21 @@ Artifacts: New source/config/tests/batch only; official selection report pending
 Remaining: User runs run_selection.bat and returns outputs/selection_v1/; evaluate calibration, uncertainty and stability, then explicitly agree on any winner lock. Source timezone/rollover remain unknown.
 ```
 
+## 2026-09-23 — Phase 6 verification and Phase 7A half-life package
+
+```text
+Status: SELECTION-V1 USER-RUN ARTIFACTS VERIFIED. PHASE7A-V1 IMPLEMENTED and locally TESTED; full user-run pending.
+Changes: Verified Phase 6 daily hashes and recomputed reports. User approved shortlist Empirical EWMA / Mixture 3 (1m) / Mixture 2 (5m), then approved Phase 7A EWMA half-life 30/60/120, fit window 60 days, refit every 5 days. Added new-only HL30/120 causal trial runner, checkpoint after each fit/day, report with 2022-23 tuning and retrospective 2024 diagnostics, portable .bat and tests.
+Files changed: src/distributional_bands/phase7a.py, phase7a_report.py, configs/phase7a_v1.json, run_phase7a.bat, tests/test_phase7a.py, README.md, docs/research_plan.md, PROCESS.md. Existing Phase 3-6 source/config/checkpoints untouched.
+Validation: Both SELECTION-V1 checkpoints complete 748/748; saved reports exactly match recomputation. 37 unit/integration tests passed, including synthetic interrupted/resumed trial and report. run_phase7a.bat check confirmed 0/748 on all four new trials. Bounded 1m HL120 Mixture 3 and 5m HL30 Mixture 2 real first-day fits succeeded; each resumed to day two. The HL60 sigma/Empirical bands matched BASELINE-V1 first OOS day within ~1e-16. No full Phase 7A run or final-test use.
+Experiment ID: PHASE7A-V1; anchor BASELINE-V1/DISTRIBUTION-WF-V1/SELECTION-V1.
+Latest checkpoint: Official Phase 7A not created; bounded smoke under outputs/phase7a_smoke_v*/ ignored. Completed SELECTION-V1 checkpoints preserved.
+Best checkpoint: N/A; no parameter or model winner locked.
+Artifacts: New source/config/tests/batch only; official Phase 7A report pending user-run.
+Rollback plan: Prior commit 012a99e. Revert only new Phase 7A files/docs if necessary; never alter completed upstream artifacts.
+Remaining: User runs run_phase7a.bat and returns outputs/phase7a_v1/. Assess conditional calibration and decide whether Phase 7B past-only correction is warranted. Source timezone/rollover remain unknown.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -2009,37 +2050,37 @@ Không dump toàn bộ terminal log.
 Khi đổi AI hoặc kết thúc session dang dở:
 
 ```text
-Current task: Hand off Phase 6 development OOS diagnostics for user execution and later model-selection discussion.
+Current task: Hand off Phase 7A approved half-life trials for user execution and subsequent calibration/model-lock discussion.
 
-Current status: Phase 3 baseline and Phase 5 distribution user-run artifacts VERIFIED. Phase 6 diagnostics IMPLEMENTED and locally TESTED; full Phase 6 user-run NOT VERIFIED.
+Current status: Phase 3 baseline, Phase 5 distribution and Phase 6 diagnostics user-run artifacts VERIFIED. Phase 7A IMPLEMENTED and locally TESTED; full Phase 7A user-run NOT VERIFIED.
 
-Approved scope: User said "OK tiếp tục đi" after proposal to implement Phase 6 calibration, time stability and uncertainty review on development OOS. Add checkpointed diagnostics and portable .bat. Do not open final test or auto-lock winner.
+Approved scope: User approved Empirical EWMA reference, Mixture 3 1m and Mixture 2 5m shortlist; then explicitly approved Phase 7A EWMA half-life grid 30/60/120 minutes, keeping fit window 60 days and refit every 5 days. Reuse 60m verified artifacts, create only 30/120 new trials, checkpoint and .bat, report 2022-23 tuning plus retrospective 2024. Do not open final test or auto-lock winner.
 
-What has been investigated: Completed 1m/5m upstream checkpoints, prediction schemas, fit history, existing OOS scores and documented phase gates.
+What has been investigated: Verified Phase 6 complete reports and daily hashes; small but sometimes statistically detectable pinball gains, conditional exceedance clustering, baseline calibration trade-offs. Existing causal EWMA and residual fit code checked for reuse.
 
-What has been implemented: Phase 6 reads only completed development artifacts; computes equal-weight quantile loss, coverage/exceedance, interval widths, year scores, within-session independence, PIT histogram and bootstrap paired differences versus empirical EWMA. It checkpoints per day and resumes. No winner is automatically declared.
+What has been implemented: New Phase 7A trial runner for HL30/120 per timeframe, with Empirical EWMA daily prior-60-day quantiles and shortlist-mixture fit every five days on prior-60-day residuals; daily checkpoint, fit status/history, forecast CSV, score/PIT JSON. Separate report reuses 60m anchor and compares all six configurations on 2022-23, with 2024 retrospective diagnostics and bootstrap. No automatic winner.
 
-Files touched this task: selection.py, selection_v1.json, run_selection.bat, test_selection.py, README.md, docs/research_plan.md, PROCESS.md. Baseline and distribution code/config/outputs untouched.
+Files touched this task: phase7a.py, phase7a_report.py, phase7a_v1.json, run_phase7a.bat, test_phase7a.py, README.md, docs/research_plan.md, PROCESS.md. Phase 3-6 code/config/outputs untouched.
 
 Pre-existing user changes: Git worktree was clean before this task. Local raw CSV and user-generated outputs/data_v1/ were preserved and remain ignored by Git.
 
-Tests already run: 31 unittest tests; run_selection.bat check; bounded two-day real-data selection smoke per timeframe with resume. No full Phase 6 run or final-test access.
+Tests already run: 37 unittest tests; run_phase7a.bat check; bounded real 1m HL120 and 5m HL30 first-day fits with one-day resume each; HL60 sigma/Empirical band first-day reconciliation ~1e-16 against BASELINE-V1. No full Phase 7A run or final-test use.
 
-Experiment ID: SELECTION-V1 (full user-run pending); upstream DISTRIBUTION-WF-V1 and BASELINE-V1 complete.
+Experiment ID: PHASE7A-V1 (full user-run pending); upstream SELECTION-V1, DISTRIBUTION-WF-V1 and BASELINE-V1 complete.
 
-Latest checkpoint: DISTRIBUTION-WF-V1 complete 748/748 per timeframe; official SELECTION-V1 checkpoint not yet created.
+Latest checkpoint: Upstream SELECTION-V1 complete 748/748 per timeframe; official PHASE7A-V1 not yet created. Bounded smoke checkpoints at outputs/phase7a_smoke_v*/ ignored.
 
-Best checkpoint: N/A; no winner lock. Paired ranking is descriptive.
+Best checkpoint: N/A; no half-life or model winner locked.
 
-Can resume: Phase 6 bounded real-data resume 1→2 days VERIFIED; full user-run resume NOT VERIFIED until artifacts arrive.
+Can resume: Phase 7A synthetic interruption/resume and bounded real 1→2 day resume VERIFIED; full user-run resume NOT VERIFIED until artifacts arrive.
 
 Known issue: User confirmed bar-start timestamps. Source timezone and rollover metadata remain absent. Original DATA-V1 config/manifest retain the earlier unverified timestamp label to preserve hashes.
 
-Next recommended action: User runs run_selection.bat after git pull/pip install -e ., retaining the completed DATA-V1, BASELINE-V1 and DISTRIBUTION-WF-V1 directories; then return outputs/selection_v1/ for integrity and model-selection review.
+Next recommended action: User runs run_phase7a.bat after git pull/pip install -e ., retaining completed DATA-V1 and Phase 3-6 outputs; then returns outputs/phase7a_v1/ for integrity, OOS and calibration review.
 
 Do NOT: Use 2025–2026-07-17 for model/parameter selection; do not run full fitting/backtest locally or rewrite versioned DATA-V1 artifacts.
 
-Waiting for user action on: Official Phase 6 .bat run and returned selection artifacts. Rollover and source timezone metadata can be supplied later.
+Waiting for user action on: Official Phase 7A .bat run and returned trial artifacts. Rollover and source timezone metadata can be supplied later.
 ```
 
 AI mới phải đọc phần này trước khi tiếp tục.
@@ -2049,20 +2090,20 @@ AI mới phải đọc phần này trước khi tiếp tục.
 # 54. CURRENT CHECKPOINT STATUS
 
 ```text
-Experiment: SELECTION-V1 full user-run pending; upstream DISTRIBUTION-WF-V1 and BASELINE-V1 complete
-Run: SELECTION-V1-1m and SELECTION-V1-5m
+Experiment: PHASE7A-V1 full user-run pending; upstream Phase 3/5/6 complete
+Run: PHASE7A-V1-<timeframe>-HL30 and -HL120 (1m/5m); 60-minute anchor reused
 
-Latest checkpoint: outputs/selection_v1/<timeframe>/latest.json after user starts; currently absent
+Latest checkpoint: outputs/phase7a_v1/<timeframe>/hl30|hl120/latest.json after user starts; currently absent
 Created: Not yet for official run
-Progress: 0/748 development days per timeframe at successful preflight on 2026-09-23. Upstream distribution checkpoints are complete 748/748.
+Progress: 0/748 development days for each of four trials at successful preflight on 2026-09-23. Upstream Phase 3/5/6 checkpoints complete.
 
 Best checkpoint: N/A
 Metric: N/A
 Value: N/A
 
-Resume status: Phase 6 bounded real-data 1→2 day resume VERIFIED; full user-run NOT VERIFIED.
+Resume status: Phase 7A synthetic and bounded real-data 1→2 day resume VERIFIED; full user-run NOT VERIFIED.
 
-Last successful resume test: 2026-09-23, bounded two-day Phase 6 real-data smoke per timeframe. BASELINE-V1 and DISTRIBUTION-WF-V1 remain complete and artifact-verified.
+Last successful resume test: 2026-09-23, bounded 1m HL120 and 5m HL30 two-day real-data smoke. BASELINE-V1, DISTRIBUTION-WF-V1 and SELECTION-V1 remain complete and artifact-verified.
 ```
 
 ---
@@ -2077,7 +2118,9 @@ Last successful resume test: 2026-09-23, bounded two-day Phase 6 real-data smoke
 [x] Implement and locally test phase 4B skewed families/mixture-3 and phase 5 checkpointed OOS runner.
 [x] User ran run_distribution_walkforward.bat; checkpoints, prediction hashes and summaries validated for 1m/5m.
 [x] Implement Phase 6 diagnostics runner and bounded validation without opening final test.
-[ ] User runs run_selection.bat; inspect report and discuss model locks before Phase 7/final test.
+[x] User ran run_selection.bat; verified 748/748 days, daily hashes and reports on both timeframes.
+[x] User approved Phase 7A shortlist and locked 30/60/120 grid; implementation and bounded validation complete.
+[ ] User runs run_phase7a.bat; inspect reports and decide whether a Phase 7B causal calibration correction is needed.
 ```
 
 Danh sách này không phải authorization để code.

@@ -56,6 +56,12 @@ Hai run distribution walk-forward 1m/5m đã được người dùng chạy và 
 
 `report.json` gồm pinball trên cùng thanh dự báo, coverage và exceedance hai phía, độ rộng band, độ ổn định theo năm, independence của các lần vượt band trong từng phiên, histogram PIT của các phân phối, cùng khoảng tin cậy day-block bootstrap/giá trị p hiệu chỉnh Holm so với empirical EWMA. Đây là **chẩn đoán trên development OOS**, không tự động khóa winner hay mở final test. Cần trao đổi kết quả và ghi quyết định chọn mô hình trước khi dùng dữ liệu 2025+.
 
+## Phase 7A: kiểm tra half-life của volatility
+
+Người dùng đã chạy đầy đủ SELECTION-V1 cho 1m và 5m; checkpoint 748/748 và báo cáo được xác minh. Shortlist nghiên cứu (chưa phải winner): Empirical EWMA làm đối chứng, Normal Mixture 3 cho 1m và Normal Mixture 2 cho 5m. [phase7a_v1.json](configs/phase7a_v1.json) khóa EWMA half-life 30/60/120 phút giao dịch, cửa sổ fit 60 phiên và refit mỗi 5 phiên. Mốc 60 phút **dùng lại** artifact Phase 5–6 đã xác minh; Phase 7A chỉ chạy mới mốc 30/120. Cả hai mô hình được dự báo lại nhân quả cho từng mốc, vì thay sigma cũng thay standardized residual và quantile fit.
+
+Chạy `run_phase7a.bat check` để kiểm tra mà không fit, sau đó `run_phase7a.bat` trên máy tính dành cho job nặng. Bốn trial ghi prediction CSV, daily score/PIT và checkpoint atomically sau từng lần fit/ngày vào `outputs/phase7a_v1/<timeframe>/hl<half_life>/`; chạy lại cùng lệnh để resume. Kết thúc sẽ tạo `outputs/phase7a_v1/<timeframe>/report.json`: xếp hạng bằng pinball 2022–2023, còn 2024 là kiểm tra độ ổn định hồi cứu, **không** phải holdout sạch vì shortlist đã được xem trên toàn bộ 2022–2024. Báo cáo vẫn giữ coverage, exceedance clustering, PIT, fit failure và bootstrap so với Empirical EWMA half-life 60. Không tự khóa tham số hoặc mở final test 2025+.
+
 Project này nghiên cứu việc **xây dựng và kiểm định Bollinger Band dựa trên các phân phối xác suất khác nhau** đối với hợp đồng tương lai **VN30F1M**, sử dụng dữ liệu nến **1 phút** và triển khai bằng Python.
 
 Bollinger Band truyền thống sử dụng trung bình động và độ lệch chuẩn để xác định vùng giá bất thường. Tuy nhiên, lợi suất tài chính thường có các đặc điểm như **fat tails, skewness và volatility clustering**, khiến giả định về một phân phối đối xứng hoặc việc sử dụng cố định khoảng cách \(k\sigma\) có thể không phản ánh chính xác xác suất xuất hiện của các biến động cực đoan.
