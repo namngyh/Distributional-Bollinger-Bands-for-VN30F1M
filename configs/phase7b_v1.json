@@ -1,0 +1,19 @@
+{
+  "experiment_id": "PHASE7B-V1",
+  "development_last_date": 20241231,
+  "tuning_end_date": 20231231,
+  "final_test_start": 20250101,
+  "source_half_life_minutes": 30,
+  "warmup_days": 60,
+  "calibration_history": "expanding_prior_development_days",
+  "probability_floor": 1e-9,
+  "central_coverages": [0.9, 0.95, 0.975, 0.99, 0.995],
+  "baseline_model": "empirical_ewma",
+  "shortlist": {
+    "1m": "normal_mixture_3",
+    "5m": "normal_mixture_2"
+  },
+  "bootstrap_block_days": 5,
+  "bootstrap_replicates": 2000,
+  "bootstrap_seed": 20260923
+}
