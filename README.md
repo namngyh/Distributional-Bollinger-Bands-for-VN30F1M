@@ -1,6 +1,6 @@
 # Distributional Bollinger Bands for VN30F1M
 
-**Trạng thái:** Phase 0–2 đã hoàn thành phần nền tảng; phase 3 baseline 1m/5m đã được người dùng chạy và xác minh artifact. Phase 4A có thư viện fit sáu phân phối và kiểm thử nhẹ; full distribution walk-forward và backtest chưa chạy.
+**Trạng thái:** Phase 0–2 đã hoàn thành phần nền tảng; phase 3 baseline 1m/5m đã được người dùng chạy và xác minh artifact. Phase 4 có chín ứng viên và runner walk-forward OOS đã kiểm thử nhẹ; **full distribution run và backtest chưa chạy**.
 
 Xem [lộ trình nghiên cứu](docs/research_plan.md) và [data contract](docs/data_contract.md). Dataset gốc `ohlc_export.csv` được giữ nguyên tại root và không đưa vào Git.
 
@@ -34,11 +34,21 @@ Script chạy lần lượt 1m và 5m, tự nhận checkpoint hợp lệ trong `
 
 Lần chạy này chỉ phát dự báo development giai đoạn 2022–2024. Người dùng đã khóa 2025–17/07/2026 làm final test chưa dùng để chọn mô hình. Tham số và lịch chạy được ghi ở [baseline_v1.json](configs/baseline_v1.json); chi tiết tại [research plan](docs/research_plan.md).
 
-## Phase 4A: fit phân phối (chưa chạy walk-forward)
+## Phase 4: fit phân phối và development OOS walk-forward
 
-`distributional_bands.distributions` cung cấp `fit_distribution(model, historical_residuals, config)` cho `normal`, `student_t`, `ged`, `nig`, `gh` và `normal_mixture_2`. Kết quả có `cdf`, `ppf`, `logpdf`, tham số và diagnostics hội tụ. Đầu vào phải là residual **chỉ từ quá khứ** do caller cung cấp; module không tự đọc dữ liệu hay truy cập final test. Fit thất bại sẽ ném `FitError`, không thay ngầm bằng Normal. Cấu hình versioned ở [distribution_fit_v1.json](configs/distribution_fit_v1.json).
+`distributional_bands.distributions` cung cấp `fit_distribution(model, historical_residuals, config)` cho Normal, Student-t, GED, two-piece skewed-t/GED, NIG, GH, Normal Mixture 2 và 3 thành phần. Kết quả có `cdf`, `ppf`, `logpdf`, tham số và diagnostics hội tụ. Đầu vào fit chỉ gồm residual quá khứ. Fit thất bại được ghi rõ, không thay ngầm bằng Normal. Cấu hình runner chính thức ở [distribution_fit_v2.json](configs/distribution_fit_v2.json) và [walk_forward_v1.json](configs/walk_forward_v1.json); V1 của thư viện vẫn được giữ nguyên.
 
-Kiểm thử nhẹ bằng `python -m unittest discover -s tests -v`. Full fit/walk-forward cho cả lịch sử sẽ thuộc Phase 5 và cần `.bat` có checkpoint; chưa có lệnh full run ở Phase 4A.
+Trên máy chạy, cập nhật Git và cài dependency bằng `python -m pip install -e .`; đảm bảo `outputs/data_v1/` gồm `manifest.json` và cả hai file `samples_*.csv` (không nằm trong Git). Sau đó chạy:
+
+```powershell
+.\run_distribution_walkforward.bat
+```
+
+Script kiểm tra Python >=3.11, NumPy/pandas/SciPy, dữ liệu, config, checkpoint và >=4 GiB đĩa trống; chạy 1m rồi 5m. Job có thể kéo dài nhiều giờ vì GH và các lần refit trên 60 phiên lịch sử mỗi 5 phiên. Sau **mỗi mô hình fit** và **mỗi ngày dự báo** sẽ ghi checkpoint `outputs/distribution_wf_v1/<timeframe>/latest.json`. Nếu dừng, chạy lại cùng `.bat`; không xóa output. Không sửa source/config/input giữa chừng vì resume sẽ từ chối hash khác. Một fit lỗi được ghi lại và mô hình đó tạm không phát dự báo đến lần refit kế tiếp; không dùng fallback.
+
+Có thể chạy `.\run_distribution_walkforward.bat check` để chỉ kiểm tra môi trường/dữ liệu/checkpoint mà **không** bắt đầu fit.
+
+Khi hoàn tất, gửi lại toàn bộ `outputs/distribution_wf_v1/` để kiểm tra. `metrics.json` gồm điểm trên mọi dự báo khả dụng, điểm **paired** trên các thanh mà cả chín mô hình đều fit thành công, và bảng xếp hạng pinball mô tả. `fit_history.json` giữ tham số, cửa sổ train, hội tụ và lỗi từng lần refit. Đây **chưa phải** quyết định winner cuối cùng: cần xét coverage, fit failure, ổn định theo thời gian; 2025–2026 tiếp tục là final test chưa đụng tới.
 
 Project này nghiên cứu việc **xây dựng và kiểm định Bollinger Band dựa trên các phân phối xác suất khác nhau** đối với hợp đồng tương lai **VN30F1M**, sử dụng dữ liệu nến **1 phút** và triển khai bằng Python.
 

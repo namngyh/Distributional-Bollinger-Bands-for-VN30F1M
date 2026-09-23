@@ -48,11 +48,11 @@ Mô hình `r[t+1] = mu[t+1|t] + sigma[t+1|t] * z[t+1]`. Vòng so sánh phân ph�
 
 NIG là trường hợp con của GH, nhưng vẫn được so sánh riêng để xem tham số bổ sung của GH có cải thiện dự báo OOS không. Các phân phối phải có trung bình 0 và phương sai 1 sau chuẩn hóa trước khi đi vào công thức band.
 
-### Phase 4A: thư viện fit, chưa chọn mô hình
+### Phase 4A–4B: thư viện fit, chưa chọn mô hình
 
 `src/distributional_bands/distributions.py` triển khai Normal, Student-t, GED, NIG, GH và Normal Mixture hai thành phần. Các họ Student-t/GED/NIG/GH fit bằng MLE có biên tham số và ba điểm khởi tạo; GH và NIG giữ `|b|<a` bằng tham số tỷ lệ có biên. Normal dùng ước lượng đóng. Mixture dùng EM với năm điểm khởi tạo theo seed, sàn phương sai/trọng số, kiểm tra hội tụ; quantile được đảo từ CDF bằng root finding. Tham số, likelihood **của luật sau chuẩn hóa**, số lần khởi tạo hội tụ và cảnh báo chạm biên được lưu trong kết quả. Fit thất bại nêu lỗi, không dùng fallback âm thầm. Mỗi luật sau fit được biến đổi affine về mean 0, variance 1; vì vậy đây là MLE/EM cho họ raw rồi chuẩn hóa, không phải tối ưu likelihood lại dưới ràng buộc mean/variance của luật cuối.
 
-Config [distribution_fit_v1.json](../configs/distribution_fit_v1.json) khóa seed và ngưỡng số học. Ngưỡng EM `1e-5` được chọn sau smoke fit rất nhỏ để tránh tiêu tốn hàng trăm bước khi hai thành phần gần không định danh; **không** được chọn bằng metric OOS. Unit tests dùng dữ liệu tổng hợp; smoke trên 120 residual đầu 2017 cho mỗi timeframe chỉ kiểm tra độ ổn định số, không phải dự báo hay so sánh chất lượng. `fit_distribution` chỉ nhận mảng residual do caller chuyển vào, nên Phase 5 phải chịu trách nhiệm tạo residual và giới hạn lịch sử trước thời điểm forecast. Skewed-t, skewed-GED và Mixture ba thành phần thuộc 4B trước khi chọn winner.
+Config [distribution_fit_v1.json](../configs/distribution_fit_v1.json) khóa sáu ứng viên Phase 4A. Ngưỡng EM `1e-5` được chọn sau smoke fit rất nhỏ để tránh tiêu tốn hàng trăm bước khi hai thành phần gần không định danh; **không** được chọn bằng metric OOS. Phase 4B mở rộng bằng [distribution_fit_v2.json](../configs/distribution_fit_v2.json): two-piece skewed Student-t, two-piece skewed GED và Normal Mixture ba thành phần. Hai luật skew dùng nửa trái/phải của phân phối mẹ với scale khác nhau, sau đó chuẩn hóa mean 0/variance 1; skew bằng 0 trở về luật mẹ. Mixture 3 là sensitivity test, không tự động được ưu tiên hơn mô hình ít tham số. Unit tests dùng dữ liệu tổng hợp; smoke trên 120 residual đầu 2017 cho mỗi timeframe chỉ kiểm tra độ ổn định số, không phải dự báo hay so sánh chất lượng.
 
 API và tham số phân phối tham chiếu tài liệu chính thức [SciPy GH](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.genhyperbolic.html), [NIG](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norminvgauss.html) và [GED](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gennorm.html).
 
@@ -64,10 +64,16 @@ Người dùng đã chốt: phát triển và walk-forward validation đến h�
 
 Mỗi forecast chỉ dùng thông tin có sẵn khi bar nguồn đã hoàn tất. Prediction, target, dataset hash, policy hash, config và mã phiên bản phải đi cùng artifact. Full walk-forward, optimization và backtest được cung cấp bằng `.bat` để người dùng chạy theo `PROCESS.md`.
 
+### Phase 5: runner development OOS
+
+[walk_forward_v1.json](../configs/walk_forward_v1.json) khóa cùng EWMA half-life 60 phút giao dịch và rolling warm-up 240 phút như baseline, fit trên residual của **60 phiên trước ngày dự báo** và refit mỗi 5 phiên development. Vòng lặp đọc tối đa đến 2024-12-31, không mở final test 2025–2026. Tại mỗi thanh, EWMA sigma chỉ dùng return của các thanh trước; mô hình fit chỉ dùng những ngày trước ngày phát dự báo. Mỗi lần refit lưu tham số, quantile, train-window, trạng thái thành công/lỗi và checkpoint sau từng ứng viên. Dự báo từng ngày cũng được ghi atomically và checkpoint, cho phép resume không ghi trùng. `run_distribution_walkforward.bat` chạy 1m rồi 5m trên máy người dùng; AI chỉ chạy unit tests và smoke nhỏ.
+
+`metrics.json` báo cáo pinball, coverage và exceedance theo mức/mô hình, cùng `paired_scores` chỉ trên những thanh có đủ tất cả ứng viên. `paired_pinball_ranking` là thứ tự mô tả theo mean pinball trung bình đều năm mức; **không** tự nhận winner nếu chưa xem fit failure, coverage, independence/PIT và độ ổn định. Fit lỗi không được thay bằng Normal; mô hình đó bỏ trống dự báo đến refit kế tiếp, lỗi hiện trong `fit_history.json`. Full job có thể tốn nhiều giờ; checkpoint theo từng mô hình/ngày bảo vệ kết quả. Phase 6 mới đánh giá và khóa winner trên development OOS.
+
 ## Quy tắc chạy và checkpoint
 
 AI chạy trực tiếp các kiểm tra nhẹ (unit/smoke tests, audit, benchmark nhỏ). Full fitting, walk-forward, optimization và backtest có thể tốn nhiều thời gian sẽ được đóng gói thành `.bat` dùng đường dẫn portable để chạy trên máy khác. Mỗi job phải kiểm tra checkpoint hợp lệ và resume trước khi bắt đầu mới; lưu tiến độ định kỳ, tối thiểu sau từng fold/window/trial hoàn tất, bằng cách ghi an toàn qua file tạm rồi thay thế. `latest` phục vụ resume, `best` lưu kết quả tốt nhất theo metric đã định nghĩa trước. Checkpoint và manifest ghi dataset/config/code hash, run ID và vị trí tiến độ để tránh mất hoặc ghi trùng kết quả.
 
 ## Trạng thái hiện tại
 
-Phase 0–2: đã triển khai và kiểm thử. Phase 3: full user-run cho 1m/5m đã được xác minh bằng checkpoint và artifact hashes; chưa chọn distribution. Phase 4A: thư viện fit đã triển khai và kiểm thử nhẹ, chưa có full walk-forward. Phase 4B–10: chưa triển khai. Người dùng xác nhận timestamp là đầu nến; timezone nguồn và rollover vẫn chưa xác minh, như ghi trong [data contract](data_contract.md).
+Phase 0–2: đã triển khai và kiểm thử. Phase 3: full user-run cho 1m/5m đã được xác minh bằng checkpoint và artifact hashes. Phase 4A–4B và Phase 5 runner: đã triển khai, kiểm thử nhẹ; **full distribution user-run chưa được xác minh** và chưa chọn distribution. Phase 6–10: chưa triển khai. Người dùng xác nhận timestamp là đầu nến; timezone nguồn và rollover vẫn chưa xác minh, như ghi trong [data contract](data_contract.md).

@@ -16,8 +16,16 @@ from scipy.optimize import brentq, minimize
 from scipy.special import logsumexp
 from scipy.stats import genhyperbolic, gennorm, norm, norminvgauss, t
 
+from .skewed import TwoPieceLaw
 
-MODEL_NAMES = ("normal", "student_t", "ged", "nig", "gh", "normal_mixture_2")
+MODEL_NAMES = (
+    "normal", "student_t", "ged", "skewed_t", "skewed_ged",
+    "nig", "gh", "normal_mixture_2", "normal_mixture_3",
+)
+
+
+def _mixture_components(model: str) -> int:
+    return int(model.rsplit("_", 1)[1]) if model.startswith("normal_mixture_") else 0
 
 
 class FitError(ValueError):
@@ -26,7 +34,7 @@ class FitError(ValueError):
 
 @dataclass(frozen=True)
 class FitConfig:
-    experiment_id: str = "DISTRIBUTION-FIT-V1"
+    experiment_id: str = "DISTRIBUTION-FIT-V2"
     models: tuple[str, ...] = MODEL_NAMES
     min_observations: int = 80
     mle_max_iter: int = 150
@@ -69,6 +77,9 @@ class FitConfig:
         if not (0 < self.mixture_tolerance < 1 and 0 < self.mixture_variance_floor < 1
                 and 0 < self.mixture_weight_floor < 0.5):
             raise ValueError("Invalid mixture tolerance or floors")
+        largest_mixture = max((_mixture_components(name) for name in self.models), default=0)
+        if largest_mixture and self.mixture_weight_floor >= 1 / largest_mixture:
+            raise ValueError("Mixture weight floor leaves no feasible component weights")
 
 
 @dataclass(frozen=True)
@@ -89,6 +100,10 @@ class FittedDistribution:
             return t(p["df"], loc=p["loc"], scale=p["scale"])
         if self.model == "ged":
             return gennorm(p["beta"], loc=p["loc"], scale=p["scale"])
+        if self.model == "skewed_t":
+            return TwoPieceLaw("student_t", p["df"], p["skew"], p["loc"], p["scale"])
+        if self.model == "skewed_ged":
+            return TwoPieceLaw("ged", p["beta"], p["skew"], p["loc"], p["scale"])
         if self.model == "nig":
             return norminvgauss(p["a"], p["b"], loc=p["loc"], scale=p["scale"])
         if self.model == "gh":
@@ -97,22 +112,23 @@ class FittedDistribution:
 
     def _mixture_cdf(self, raw: np.ndarray) -> np.ndarray:
         p = self.parameters
-        return (p["weight_1"] * norm.cdf(raw, p["mean_1"], p["sigma_1"])
-                + p["weight_2"] * norm.cdf(raw, p["mean_2"], p["sigma_2"]))
+        return sum(p[f"weight_{i}"] * norm.cdf(raw, p[f"mean_{i}"], p[f"sigma_{i}"])
+                   for i in range(1, _mixture_components(self.model) + 1))
 
     def cdf(self, value: float | np.ndarray) -> float | np.ndarray:
         raw = self.center + self.spread * np.asarray(value, dtype=float)
-        result = self._mixture_cdf(raw) if self.model == "normal_mixture_2" else self._frozen().cdf(raw)
+        result = self._mixture_cdf(raw) if _mixture_components(self.model) else self._frozen().cdf(raw)
         return float(result) if np.ndim(value) == 0 else np.asarray(result)
 
     def logpdf(self, value: float | np.ndarray) -> float | np.ndarray:
         raw = self.center + self.spread * np.asarray(value, dtype=float)
-        if self.model == "normal_mixture_2":
+        if _mixture_components(self.model):
             p = self.parameters
-            pieces = np.stack((
-                math.log(p["weight_1"]) + norm.logpdf(raw, p["mean_1"], p["sigma_1"]),
-                math.log(p["weight_2"]) + norm.logpdf(raw, p["mean_2"], p["sigma_2"]),
-            ))
+            pieces = np.stack([
+                math.log(p[f"weight_{i}"])
+                + norm.logpdf(raw, p[f"mean_{i}"], p[f"sigma_{i}"])
+                for i in range(1, _mixture_components(self.model) + 1)
+            ])
             result = logsumexp(pieces, axis=0) + math.log(self.spread)
         else:
             result = self._frozen().logpdf(raw) + math.log(self.spread)
@@ -122,7 +138,7 @@ class FittedDistribution:
         q = np.asarray(probability, dtype=float)
         if not np.isfinite(q).all() or (q <= 0).any() or (q >= 1).any():
             raise ValueError("Probabilities must be finite and strictly between zero and one")
-        if self.model == "normal_mixture_2":
+        if _mixture_components(self.model):
             raw = np.asarray([self._mixture_ppf(float(item)) for item in q.flat]).reshape(q.shape)
         else:
             raw = np.asarray(self._frozen().ppf(q))
@@ -178,6 +194,14 @@ def _mle_parameters(model: str, sample: np.ndarray, config: FitConfig) -> tuple[
     elif model == "ged":
         starts = [[beta, median, log_scale] for beta in (1, 2, 3)]
         bounds = [(0.4, 8), (-3, 3), (-4, 3)]
+    elif model == "skewed_t":
+        starts = [[df, asymmetry, median, log_scale]
+                  for df, asymmetry in ((4, 0), (10, skew), (40, -skew))]
+        bounds = [(2.05, 200), (-1.5, 1.5), (-3, 3), (-4, 3)]
+    elif model == "skewed_ged":
+        starts = [[beta, asymmetry, median, log_scale]
+                  for beta, asymmetry in ((1, 0), (2, skew), (3, -skew))]
+        bounds = [(0.4, 8), (-1.5, 1.5), (-3, 3), (-4, 3)]
     elif model == "nig":
         starts = [[a, rho, median, log_scale] for a, rho in ((1, 0), (3, skew), (8, -skew))]
         bounds = [(0.1, 30), (-0.95, 0.95), (-3, 3), (-4, 3)]
@@ -193,6 +217,10 @@ def _mle_parameters(model: str, sample: np.ndarray, config: FitConfig) -> tuple[
             return {"df": float(theta[0]), "loc": loc, "scale": scale}
         if model == "ged":
             return {"beta": float(theta[0]), "loc": loc, "scale": scale}
+        if model == "skewed_t":
+            return {"df": float(theta[0]), "skew": float(theta[1]), "loc": loc, "scale": scale}
+        if model == "skewed_ged":
+            return {"beta": float(theta[0]), "skew": float(theta[1]), "loc": loc, "scale": scale}
         a, rho = float(theta[-4]), float(theta[-3])
         result = {"a": a, "b": a * rho, "loc": loc, "scale": scale}
         if model == "gh":
@@ -206,6 +234,12 @@ def _mle_parameters(model: str, sample: np.ndarray, config: FitConfig) -> tuple[
                 values = t.logpdf(sample, p["df"], loc=p["loc"], scale=p["scale"])
             elif model == "ged":
                 values = gennorm.logpdf(sample, p["beta"], loc=p["loc"], scale=p["scale"])
+            elif model == "skewed_t":
+                values = TwoPieceLaw("student_t", p["df"], p["skew"],
+                                     p["loc"], p["scale"]).logpdf(sample)
+            elif model == "skewed_ged":
+                values = TwoPieceLaw("ged", p["beta"], p["skew"],
+                                     p["loc"], p["scale"]).logpdf(sample)
             elif model == "nig":
                 values = norminvgauss.logpdf(sample, p["a"], p["b"], loc=p["loc"], scale=p["scale"])
             else:
@@ -237,18 +271,20 @@ def _mle_parameters(model: str, sample: np.ndarray, config: FitConfig) -> tuple[
     }
 
 
-def _mixture_parameters(sample: np.ndarray, config: FitConfig) -> tuple[dict[str, float], dict]:
+def _mixture_parameters(model: str, sample: np.ndarray,
+                        config: FitConfig) -> tuple[dict[str, float], dict]:
+    components = _mixture_components(model)
     rng = np.random.default_rng(config.seed)
     variance = max(float(np.var(sample)), config.mixture_variance_floor)
-    seeds = np.quantile(sample, [0.25, 0.75])
+    seeds = np.quantile(sample, np.arange(1, components + 1) / (components + 1))
     candidates = []
     failure_reasons = []
     for start in range(config.mixture_starts):
         means = np.asarray(seeds, dtype=float).copy()
         if start:
-            means += rng.normal(0, math.sqrt(variance) * 0.2, size=2)
-        variances = np.full(2, variance)
-        weights = np.full(2, 0.5)
+            means += rng.normal(0, math.sqrt(variance) * 0.2, size=components)
+        variances = np.full(components, variance)
+        weights = np.full(components, 1 / components)
         previous = -math.inf
         reason = "iteration limit"
         for iteration in range(1, config.mixture_max_iter + 1):
@@ -286,13 +322,13 @@ def _mixture_parameters(sample: np.ndarray, config: FitConfig) -> tuple[dict[str
             previous = likelihood
         failure_reasons.append(reason)
     if not candidates:
-        raise FitError(f"normal_mixture_2: no converged EM start ({', '.join(failure_reasons)})")
+        raise FitError(f"{model}: no converged EM start ({', '.join(failure_reasons)})")
     _, weights, means, variances, iterations = max(candidates, key=lambda item: item[0])
-    parameters = {
-        "weight_1": float(weights[0]), "weight_2": float(weights[1]),
-        "mean_1": float(means[0]), "mean_2": float(means[1]),
-        "sigma_1": math.sqrt(float(variances[0])), "sigma_2": math.sqrt(float(variances[1])),
-    }
+    parameters = {}
+    for i in range(components):
+        parameters[f"weight_{i + 1}"] = float(weights[i])
+        parameters[f"mean_{i + 1}"] = float(means[i])
+        parameters[f"sigma_{i + 1}"] = math.sqrt(float(variances[i]))
     return parameters, {
         "starts_attempted": config.mixture_starts,
         "converged_starts": len(candidates),
@@ -311,16 +347,17 @@ def fit_distribution(model: str, residuals: np.ndarray, config: FitConfig) -> Fi
         parameters = {"loc": float(sample.mean()), "scale": float(sample.std())}
         diagnostics = {"starts_attempted": 0, "converged_starts": 0,
                        "iterations": 0, "optimizer_message": "closed-form Gaussian MLE"}
-    elif model == "normal_mixture_2":
-        parameters, diagnostics = _mixture_parameters(sample, config)
+    elif _mixture_components(model):
+        parameters, diagnostics = _mixture_parameters(model, sample, config)
     else:
         parameters, diagnostics = _mle_parameters(model, sample, config)
 
-    if model == "normal_mixture_2":
-        center = sum(parameters[f"weight_{i}"] * parameters[f"mean_{i}"] for i in (1, 2))
+    if _mixture_components(model):
+        component_ids = range(1, _mixture_components(model) + 1)
+        center = sum(parameters[f"weight_{i}"] * parameters[f"mean_{i}"] for i in component_ids)
         second = sum(parameters[f"weight_{i}"] *
                      (parameters[f"sigma_{i}"] ** 2 + parameters[f"mean_{i}"] ** 2)
-                     for i in (1, 2))
+                     for i in component_ids)
         variance = second - center ** 2
     else:
         if model == "normal":
@@ -329,6 +366,12 @@ def fit_distribution(model: str, residuals: np.ndarray, config: FitConfig) -> Fi
             rv = t(parameters["df"], loc=parameters["loc"], scale=parameters["scale"])
         elif model == "ged":
             rv = gennorm(parameters["beta"], loc=parameters["loc"], scale=parameters["scale"])
+        elif model == "skewed_t":
+            rv = TwoPieceLaw("student_t", parameters["df"], parameters["skew"],
+                             parameters["loc"], parameters["scale"])
+        elif model == "skewed_ged":
+            rv = TwoPieceLaw("ged", parameters["beta"], parameters["skew"],
+                             parameters["loc"], parameters["scale"])
         elif model == "nig":
             rv = norminvgauss(parameters["a"], parameters["b"],
                               loc=parameters["loc"], scale=parameters["scale"])
