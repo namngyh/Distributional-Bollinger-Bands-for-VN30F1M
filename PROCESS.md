@@ -218,7 +218,7 @@ Tests: python -m unittest discover -s tests -v
 Configuration: configs/data_v1.json; configs/baseline_v1.json
 Checkpoints: outputs/baseline_v1/<timeframe>/latest.json (full run); bounded smoke checkpoints in outputs/baseline_smoke_v1/
 Experiments: BASELINE-V1 (development forecasts only)
-Outputs: outputs/data_v1/; outputs/baseline_v1/ after user run
+Outputs: outputs/data_v1/; outputs/baseline_v1/ (user-run artifacts verified)
 Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
 
@@ -235,7 +235,7 @@ Build and compare 1m/5m distributional bands, prioritizing out-of-sample forecas
 ## Current task
 
 ```text
-Phase 3 baseline implemented for both timeframes; full development walk-forward is ready for user-run on another machine. Next: inspect returned artifacts and source metadata before phase 4.
+Phase 3 full development baseline artifacts verified for both timeframes. Next: obtain approval for the scoped phase 4 distribution-fitting implementation.
 ```
 
 ## Current state
@@ -257,7 +257,7 @@ DONE
 Current:
 
 ```text
-TESTING — phase 3 unit and bounded real-data smoke tests passed; full user-run is not yet verified.
+DISCUSSING — phase 3 full user-run artifacts verified; phase 4 scope awaits approval.
 ```
 
 ## Last known working state
@@ -265,21 +265,21 @@ TESTING — phase 3 unit and bounded real-data smoke tests passed; full user-run
 ```text
 Branch: main (tracks origin/main)
 Commit: See `git log -1`; original remote base is ca2d150.
-Command: python -m unittest discover -s tests -v; bounded `python -m distributional_bands.baseline ... --max-days` for 1m and 5m.
-Result: Eleven unit tests passed; both timeframes checkpointed and resumed through the third real-data trading day.
+Command: python -m unittest discover -s tests -v; bounded `python -m distributional_bands.baseline ... --max-days` for 1m and 5m; completed-run validation via `python -m distributional_bands.baseline` for each timeframe.
+Result: Eleven unit tests passed; bounded resume passed; completed-run validation reported `already complete; validated checkpoint and artifacts` for 1m and 5m, each through 2024-12-31.
 Date: 2026-09-23
 ```
 
 ## Current modifications
 
 ```text
-Phase 3 baseline code, config, portable .bat, tests and docs are the current change. Raw CSV and all outputs are ignored by Git and remain local.
+Phase 3 code, config and artifacts are unchanged. Documentation records user-confirmed timestamp and split plus verified baseline artifacts. Raw CSV and all outputs are ignored by Git and remain local.
 ```
 
 ## Blockers
 
 ```text
-Timestamp convention and contract rollover rule are not supplied by the CSV. DATA-V1 uses conservative availability timing and never builds targets across sessions.
+User confirmed timestamp labels are bar starts. Source timezone and contract rollover rule remain unverified; DATA-V1 never builds targets across sessions. Historical DATA-V1 config/manifest text still says timestamp unverified and must not be edited in place because artifact hashes depend on it.
 ```
 
 ---
@@ -1451,6 +1451,19 @@ nếu mục tiêu là đánh giá khả năng triển khai thực tế.
 Mỗi run quan trọng nên ghi output chính thức.
 
 ```text
+Experiment ID: BASELINE-V1
+Run IDs: BASELINE-V1-1m; BASELINE-V1-5m
+Checkpoint: outputs/baseline_v1/<timeframe>/latest.json (complete, 1790/1790 days, last day 2024-12-31)
+Metrics: outputs/baseline_v1/<timeframe>/metrics.json
+Predictions: outputs/baseline_v1/<timeframe>/predictions/ (748 daily CSV files per timeframe)
+Manifest: outputs/baseline_v1/<timeframe>/run_manifest.json
+Config: configs/baseline_v1.json, SHA-256 5fd89c4331c8807bedea6c276c6e3c11a6770229d5783ca0c7a32365ffcfcc6d
+Dataset: outputs/data_v1/manifest.json, SHA-256 374fa77f8c5eb4db2caa12a88f7e090b200ff045da2f680b7d0c57fecd3c1bdd
+Validation: completed-run runner verified checkpoint and all artifact hashes for 1m and 5m on 2026-09-23.
+Git/source lineage: See each run_manifest.json; source file hashes are recorded there. The raw data and outputs are ignored by Git.
+```
+
+```text
 Experiment ID:
 Run ID:
 
@@ -1671,7 +1684,7 @@ AI phải đọc mỗi session.
 Ví dụ:
 
 ```text
-- Timestamp convention and rollover rule are not verified from the supplied CSV.
+- Timestamp is a bar-start label per user confirmation on 2026-09-23; original DATA-V1 config/manifest still records its earlier unverified state. Source timezone and rollover rule remain unverified.
 - DATA-V1 intentionally excludes 11:30, 14:30, 14:45 and all cross-session targets.
 - A 5m bar requires all five source minutes; partial buckets must not enter forecasts.
 - Never use future candle information in signals or fit a distribution with test data.
@@ -1739,6 +1752,20 @@ Trade-offs: Heavy results become available for verification only after the user 
 Affected modules: Future fitting, walk-forward, optimization, backtest and experiment orchestration.
 Checkpoint compatibility: Future runs must bind checkpoints to dataset/config/code hashes and run ID.
 Revisit conditions: User changes execution environment or explicitly authorizes a specific full run here.
+Status: ACTIVE
+```
+
+## DEC-002 — Bar-start timestamps and locked OOS/final periods
+
+```text
+Date: 2026-09-23
+Decision: User confirmed source timestamps label bar starts. Use 2022-01-01 through 2024-12-31 for development OOS model selection; keep 2025-01-01 through the current data end (2026-07-17) untouched for final evaluation.
+Reason: Preserve causal forecast timing and prevent final-test contamination.
+Alternatives considered: Rebuild DATA-V1 as end-labeled data; leave the final-test boundary provisional.
+Trade-offs: Source timezone and contract rollover remain unknown; they must be revisited before interpreting trading performance or rollover-sensitive tails.
+Affected modules: Research/data documentation and future phase 4–9 experiments; no change to DATA-V1 code, config, data or baseline artifacts.
+Checkpoint compatibility: Existing DATA-V1 and BASELINE-V1 hashes remain unchanged. Record the user's later timestamp confirmation as an addendum rather than rewriting a hashed config/manifest.
+Revisit conditions: Source documentation contradicts the timestamp confirmation, timezone/roll metadata arrives, or user explicitly changes the split.
 Status: ACTIVE
 ```
 
@@ -1836,6 +1863,20 @@ Artifacts: Smoke checkpoints only; no full development metrics or selected model
 Remaining: User runs run_baseline.bat on the other machine; inspect metrics/artifacts and validate source timestamp/rollover metadata.
 ```
 
+## 2026-09-23 — Full baseline verification and research contract lock
+
+```text
+Status: USER-RUN ARTIFACTS VERIFIED; phase 4 not started.
+Changes: Documentation only. Recorded user confirmation of bar-start timestamps, locked development OOS 2022–2024 and untouched final 2025–2026-07-17, and preserved unknown rollover/timezone status.
+Files changed: README.md, docs/data_contract.md, docs/research_plan.md, PROCESS.md.
+Validation: Both completed baseline runners reported `already complete; validated checkpoint and artifacts`; checkpoints show 1790/1790 days through 2024-12-31, 748 daily prediction files per timeframe, 177939 1m and 34344 5m OOS forecasts. No full experiment rerun.
+Experiment ID: BASELINE-V1.
+Latest checkpoint: outputs/baseline_v1/<timeframe>/latest.json, complete.
+Best checkpoint: N/A for deterministic baseline.
+Artifacts: outputs/baseline_v1/<timeframe>/{run_manifest.json,latest.json,metrics.json,predictions/}.
+Remaining: Discuss and approve phase 4 fit/quantile scope; verify rollover and source timezone when metadata becomes available.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -1869,37 +1910,37 @@ Không dump toàn bộ terminal log.
 Khi đổi AI hoặc kết thúc session dang dở:
 
 ```text
-Current task: Phase 3 reproducible baseline forecasts for 1m and 5m.
+Current task: Phase 4 distribution-fitting scope discussion following verified phase 3 baseline.
 
-Current status: Local tests and bounded smoke VERIFIED; full user-run NOT VERIFIED.
+Current status: Full phase 3 user-run artifacts VERIFIED; phase 4 not implemented or approved yet.
 
-Approved scope: User asked to continue after phase 0–2 and directed that light tasks run locally while full jobs use a portable .bat and checkpoints.
+Approved scope: Documentation-only status update recording the confirmed timestamp/split and verified baseline artifacts. Phase 4 implementation still requires approval.
 
-What has been investigated: Raw CSV schema, chronology, session boundaries, missing minutes, return outliers, buy/sell volume mismatch.
+What has been investigated: Raw CSV schema, chronology, session boundaries, missing minutes, return outliers, buy/sell volume mismatch, completed 1m/5m baseline checkpoint and artifact hashes.
 
 What has been implemented: Phase 0–2 data foundation plus phase 3 baseline runner, metrics, daily checkpoint/resume, unit tests and run_baseline.bat.
 
-Files touched this task: baseline.py, baseline_v1.json, test_baseline.py, run_baseline.bat, README.md, docs/research_plan.md, PROCESS.md.
+Files touched this documentation task: README.md, docs/data_contract.md, docs/research_plan.md, PROCESS.md. No source/config/output files changed.
 
 Pre-existing user changes: Git worktree was clean before this task. Local raw CSV and user-generated outputs/data_v1/ were preserved and remain ignored by Git.
 
-Tests already run: Eleven unittest tests; bounded baseline smoke for 1m/5m, then one-day resume for each.
+Tests already run: Eleven unittest tests and bounded resume in the prior task; completed-run validation for 1m and 5m confirmed checkpoint and artifact hashes in this task.
 
 Experiment ID: BASELINE-V1.
 
-Latest checkpoint: outputs/baseline_smoke_v1/<timeframe>/latest.json through 2017-11-08; full run has not started.
+Latest checkpoint: outputs/baseline_v1/<timeframe>/latest.json, complete through 2024-12-31.
 
 Best checkpoint: N/A for deterministic baseline.
 
-Can resume: VERIFIED for bounded smoke on both timeframes; full run resume not yet user-verified.
+Can resume: VERIFIED for bounded smoke; full run completed, so no resume needed. Artifact integrity verified.
 
-Known issue: Source timestamp convention and rollover metadata absent.
+Known issue: User confirmed bar-start timestamps. Source timezone and rollover metadata remain absent. Original DATA-V1 config/manifest retain the earlier unverified timestamp label to preserve hashes.
 
-Next recommended action: User runs run_baseline.bat on the other machine, returns metrics/checkpoints/logs, then inspect development OOS results and confirm source metadata before phase 4.
+Next recommended action: Present phase 4 model fitting, validation and checkpoint design for approval; then implement only the approved scope.
 
-Do NOT: Treat 2025–2026 as finalized untouched test until research split is approved; do not run full fitting/backtest yet.
+Do NOT: Use 2025–2026-07-17 for model/parameter selection; do not run full fitting/backtest locally or rewrite versioned DATA-V1 artifacts.
 
-Waiting for user decision on: Source timestamp/rollover metadata and any change to the provisional development/final split before phase 4 selection.
+Waiting for user decision on: Phase 4 implementation scope. Rollover and source timezone metadata can be supplied later.
 ```
 
 AI mới phải đọc phần này trước khi tiếp tục.
@@ -1909,20 +1950,20 @@ AI mới phải đọc phần này trước khi tiếp tục.
 # 54. CURRENT CHECKPOINT STATUS
 
 ```text
-Experiment: BASELINE-V1 bounded smoke only
+Experiment: BASELINE-V1 full development baseline
 Run: BASELINE-V1-1m and BASELINE-V1-5m
 
-Latest checkpoint: outputs/baseline_smoke_v1/<timeframe>/latest.json
+Latest checkpoint: outputs/baseline_v1/<timeframe>/latest.json
 Created: 2026-09-23
-Progress: Both timeframes through 2017-11-08, 3/1790 days. Full run not started.
+Progress: Both timeframes through 2024-12-31, 1790/1790 days; complete. 748 daily prediction files per timeframe.
 
 Best checkpoint: N/A
 Metric: N/A
 Value: N/A
 
-Resume status: VERIFIED for bounded smoke; full run NOT VERIFIED
+Resume status: VERIFIED for bounded smoke; completed full run checkpoint and artifacts validated. Full user-run interruption/resume was not separately observed.
 
-Last successful resume test: 2026-09-23, resumed 1m and 5m from day 2 to day 3.
+Last successful resume test: 2026-09-23, resumed bounded 1m and 5m smoke from day 2 to day 3. Full completed-run validation: 2026-09-23.
 ```
 
 ---
@@ -1930,10 +1971,10 @@ Last successful resume test: 2026-09-23, resumed 1m and 5m from day 2 to day 3.
 # 55. NEXT ACTIONS
 
 ```text
-[ ] Confirm source timestamp labeling/timezone and contract rollover rule.
-[ ] Review DATA-V1 policy and choose the final train/validation/test split.
-[ ] Run run_baseline.bat on another machine and inspect returned development results/checkpoints.
-[ ] Discuss phase 4 distribution fitting after the baseline gate.
+[x] Confirm bar-start source timestamp labeling with user; source timezone and contract rollover rule remain open.
+[x] Lock development OOS 2022–2024 and untouched final 2025–2026-07-17 with user.
+[x] Validate completed BASELINE-V1 1m/5m checkpoints, predictions and metrics.
+[ ] Discuss and approve phase 4 distribution fitting after the baseline gate.
 ```
 
 Danh sách này không phải authorization để code.

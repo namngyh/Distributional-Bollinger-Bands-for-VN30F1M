@@ -1,6 +1,6 @@
 # Distributional Bollinger Bands for VN30F1M
 
-**Trạng thái:** Phase 0–2 đã hoàn thành phần nền tảng; phase 3 baseline đã code và kiểm thử nhẹ. Full baseline run, fit các phân phối ứng viên và backtest chưa chạy.
+**Trạng thái:** Phase 0–2 đã hoàn thành phần nền tảng; phase 3 baseline 1m/5m đã được người dùng chạy và xác minh artifact. Fit các phân phối ứng viên và backtest chưa chạy.
 
 Xem [lộ trình nghiên cứu](docs/research_plan.md) và [data contract](docs/data_contract.md). Dataset gốc `ohlc_export.csv` được giữ nguyên tại root và không đưa vào Git.
 
@@ -32,7 +32,7 @@ Sau khi `outputs/data_v1/` đã có đủ hai file mẫu và `manifest.json`, ch
 
 Script chạy lần lượt 1m và 5m, tự nhận checkpoint hợp lệ trong `outputs/baseline_v1/<timeframe>/latest.json` và tiếp tục từ ngày kế tiếp. Dự báo được lưu theo ngày trong `predictions/`; `metrics.json` chỉ có sau khi job hoàn tất. Ngắt job rồi chạy lại cùng lệnh để resume. Dataset, config hoặc code khác với checkpoint sẽ bị từ chối.
 
-Lần chạy này chỉ phát dự báo development giai đoạn 2022–2024. Dữ liệu 2025–2026 chưa được dùng để chọn mô hình. Tham số và lịch chạy được ghi ở [baseline_v1.json](configs/baseline_v1.json); chi tiết tại [research plan](docs/research_plan.md).
+Lần chạy này chỉ phát dự báo development giai đoạn 2022–2024. Người dùng đã khóa 2025–17/07/2026 làm final test chưa dùng để chọn mô hình. Tham số và lịch chạy được ghi ở [baseline_v1.json](configs/baseline_v1.json); chi tiết tại [research plan](docs/research_plan.md).
 
 Project này nghiên cứu việc **xây dựng và kiểm định Bollinger Band dựa trên các phân phối xác suất khác nhau** đối với hợp đồng tương lai **VN30F1M**, sử dụng dữ liệu nến **1 phút** và triển khai bằng Python.
 

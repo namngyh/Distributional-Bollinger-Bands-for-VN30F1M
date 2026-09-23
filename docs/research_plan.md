@@ -28,7 +28,7 @@ Các band trung tâm dự kiến: 90%, 95%, 97,5%, 99% và 99,5%. Ví dụ band 
 
 ### Baseline implementation (phase 3)
 
-`configs/baseline_v1.json` cố định lần chạy development: dữ liệu quá khứ từ 2017 được cập nhật tuần tự; chỉ phát prediction từ 2022-01-01 đến 2024-12-31. Đây là cửa sổ development cho baseline, chưa phải quyết định về final test. Ba mô hình:
+`configs/baseline_v1.json` cố định lần chạy development: dữ liệu quá khứ từ 2017 được cập nhật tuần tự; chỉ phát prediction từ 2022-01-01 đến 2024-12-31. Cửa sổ này hiện đã được người dùng chốt cho chọn mô hình OOS; final test bắt đầu 2025-01-01. Ba mô hình:
 
 - `normal_ewma`: `mu=0`, phương sai EWMA cập nhật sau khi quan sát return; half-life 60 phút giao dịch.
 - `normal_rolling`: `mu=0`, căn bậc hai của trung bình bình phương return trong 240 phút giao dịch gần nhất.
@@ -36,7 +36,7 @@ Các band trung tâm dự kiến: 90%, 95%, 97,5%, 99% và 99,5%. Ví dụ band 
 
 Normal quantile dùng phân phối chuẩn chuẩn hóa. Tất cả ba baseline dùng cùng các central coverage đã định nghĩa và lưu cả quantile return lẫn band giá. Forecast của bar hiện tại được tạo trước khi return mục tiêu đi vào EWMA, rolling window hoặc lịch sử empirical.
 
-`run_baseline.bat` chạy hai timeframe theo thứ tự, ghi prediction từng ngày và checkpoint `latest.json` sau **mỗi ngày**. Khi resume, runner đối chiếu hash của input, data manifest, config, source code và mọi prediction đã checkpoint; một ngày bị gián đoạn có thể tính lại, nhưng output khác với file đã có sẽ bị từ chối. `best` không áp dụng cho baseline xác định, vì không có quá trình chọn model trong run. Full run do người dùng thực hiện trên máy khác; AI chỉ chạy bounded smoke test.
+`run_baseline.bat` chạy hai timeframe theo thứ tự, ghi prediction từng ngày và checkpoint `latest.json` sau **mỗi ngày**. Khi resume, runner đối chiếu hash của input, data manifest, config, source code và mọi prediction đã checkpoint; một ngày bị gián đoạn có thể tính lại, nhưng output khác với file đã có sẽ bị từ chối. `best` không áp dụng cho baseline xác định, vì không có quá trình chọn model trong run. Người dùng đã chạy full baseline; AI kiểm tra lại checkpoint, hash và metrics của cả hai timeframe tại `outputs/baseline_v1/`. Cả hai hoàn tất 1.790 ngày, với 177.939 dự báo 1m và 34.344 dự báo 5m trong 2022–2024. Đây là kết quả development, không phải winner phân phối hay đánh giá final test.
 
 ## Phương pháp ước lượng dự kiến cho phase 3–7
 
@@ -52,7 +52,7 @@ Primary comparison: mean quantile/pinball loss trên các tail đã định trư
 
 ## Chia dữ liệu và nguyên tắc thời gian
 
-Mốc đề xuất để khóa trước phase 5: phát triển và walk-forward validation đến hết 2024; final untouched test từ 2025 đến ngày cuối dữ liệu. Không dùng final test để chọn tham số, distribution hoặc trading rule. Ngày 2025–2026 hiện là **đề xuất**, chưa phải quyết định đã duyệt.
+Người dùng đã chốt: phát triển và walk-forward validation đến hết 2024; final untouched test từ 2025-01-01 đến ngày cuối dữ liệu hiện có (2026-07-17). Không dùng final test để chọn tham số, distribution hoặc trading rule. Nếu nguồn dữ liệu được cập nhật, ranh giới final test vẫn bắt đầu 2025-01-01 và mọi thay đổi phạm vi phải được quyết định riêng.
 
 Mỗi forecast chỉ dùng thông tin có sẵn khi bar nguồn đã hoàn tất. Prediction, target, dataset hash, policy hash, config và mã phiên bản phải đi cùng artifact. Full walk-forward, optimization và backtest được cung cấp bằng `.bat` để người dùng chạy theo `PROCESS.md`.
 
@@ -62,4 +62,4 @@ AI chạy trực tiếp các kiểm tra nhẹ (unit/smoke tests, audit, benchmar
 
 ## Trạng thái hiện tại
 
-Phase 0–2: đã triển khai và kiểm thử. Phase 3: baseline runner đã triển khai, unit tests và bounded smoke test đã đạt; full user-run chưa được xác minh. Phase 4–10: chưa triển khai. Các unknown về timestamp convention và rollover được giữ rõ trong [data contract](data_contract.md).
+Phase 0–2: đã triển khai và kiểm thử. Phase 3: full user-run cho 1m/5m đã được xác minh bằng checkpoint và artifact hashes; chưa chọn distribution. Phase 4–10: chưa triển khai. Người dùng xác nhận timestamp là đầu nến; timezone nguồn và rollover vẫn chưa xác minh, như ghi trong [data contract](data_contract.md).
