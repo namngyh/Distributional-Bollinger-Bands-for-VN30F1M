@@ -78,6 +78,8 @@ Phase 7B đã được người dùng chạy xong và kiểm tra lại: 748/748 
 
 Chạy `run_phase8.bat check` để kiểm tra chỉ-đọc, rồi `run_phase8.bat` trên máy dành cho tác vụ dài. Dự báo, điểm theo ngày, PIT 5m và checkpoint được lưu atomically tại `outputs/phase8_v1/<timeframe>/`; chạy lại cùng file để resume, **không xóa output**. Báo cáo cuối tại `report.json` gồm pinball, coverage, hai phía vượt band, PIT/independence, phân tách năm mô tả và so sánh 5m với Empirical. Không dùng kết quả final để thử tham số khác; gửi lại toàn bộ `outputs/phase8_v1/` để kiểm tra artifact và diễn giải kết quả một lần.
 
+Phase 8 đã được người dùng chạy xong và kiểm tra lại 381/381 phiên mỗi khung. Kết luận và số liệu đầy đủ nằm trong [đánh giá final Phase 8](docs/phase8_final_assessment.md): 1m có coverage tổng thể gần danh nghĩa nhưng vượt band còn tụ thành cụm; 5m Mixture hiệu chỉnh PIT **kém hơn** Empirical HL30 trên primary pinball final (+0,2253% loss, bootstrap p=0,02249) và coverage 95% (94,678% so với 94,941%). Đây là kết quả âm của mô hình đã khóa, không phải lý do để chọn lại winner trên final test. Chưa triển khai Phase 9.
+
 Project này nghiên cứu việc **xây dựng và kiểm định Bollinger Band dựa trên các phân phối xác suất khác nhau** đối với hợp đồng tương lai **VN30F1M**, sử dụng dữ liệu nến **1 phút** và triển khai bằng Python.
 
 Bollinger Band truyền thống sử dụng trung bình động và độ lệch chuẩn để xác định vùng giá bất thường. Tuy nhiên, lợi suất tài chính thường có các đặc điểm như **fat tails, skewness và volatility clustering**, khiến giả định về một phân phối đối xứng hoặc việc sử dụng cố định khoảng cách \(k\sigma\) có thể không phản ánh chính xác xác suất xuất hiện của các biến động cực đoan.

@@ -213,13 +213,13 @@ Worker: None
 CLI: python -m distributional_bands.cli audit|prepare
 Baseline: python -m distributional_bands.baseline --timeframe 1m|5m ...; run_baseline.bat for full development run
 Training: `distributional_bands.distributions.fit_distribution`; completed development walk-forward via `distributional_bands.walk_forward` and `run_distribution_walkforward.bat`
-Analysis: `distributional_bands.selection` via `run_selection.bat`; Phase 7A/7B user-run verified; frozen Phase 8 via `phase8`, `phase8_report`, `run_phase8.bat` (prepared, full user-run pending)
+Analysis: `distributional_bands.selection` via `run_selection.bat`; Phase 7A/7B and frozen Phase 8 via `phase8`, `phase8_report`, `run_phase8.bat` (all user-run verified)
 Backtest: Not implemented
 Tests: python -m unittest discover -s tests -v
 Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v2.json; configs/walk_forward_v1.json; configs/selection_v1.json; configs/phase7a_v1.json; configs/phase7b_v1.json; configs/phase8_v1.json
-Checkpoints: BASELINE-V1, DISTRIBUTION-WF-V1, SELECTION-V1, PHASE7A-V1 and PHASE7B-V1 complete; PHASE8-V1 pending
-Experiments: Phase 3/5/6/7A/7B user-run verified; PHASE8-V1 prepared and locally tested only
-Outputs: outputs/data_v1/, baseline_v1/, distribution_wf_v1/, selection_v1/, phase7a_v1/, phase7b_v1/ verified; phase8_v1/ pending
+Checkpoints: BASELINE-V1, DISTRIBUTION-WF-V1, SELECTION-V1, PHASE7A-V1, PHASE7B-V1 and PHASE8-V1 complete
+Experiments: Phase 3/5/6/7A/7B/8 user-run verified; Phase 9–10 not started
+Outputs: outputs/data_v1/, baseline_v1/, distribution_wf_v1/, selection_v1/, phase7a_v1/, phase7b_v1/, phase8_v1/ verified
 Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
 
@@ -236,7 +236,7 @@ Build and compare 1m/5m distributional bands, prioritizing out-of-sample forecas
 ## Current task
 
 ```text
-Phase 7B complete and verified. User locked 1m Empirical EWMA HL30 and 5m Normal Mixture 2 HL30 with expanding past-only PIT calibration. Phase 8 final-test runner is prepared; full run awaits user.
+Phase 8 final test complete and verified. Record the locked-model result, including the negative 5m comparison, and discuss the next research scope without final-set retuning.
 ```
 
 ## Current state
@@ -258,7 +258,7 @@ DONE
 Current:
 
 ```text
-TESTING — Phase 3/5/6/7A/7B user-run artifacts VERIFIED. Phase 8 code and synthetic tests PASS; full Phase 8 user run NOT STARTED.
+DONE — Phase 8 1m/5m user-run artifacts and reports VERIFIED. Next research phase remains DISCUSSING; no Phase 9 implementation or new model lock.
 ```
 
 ## Last known working state
@@ -266,15 +266,15 @@ TESTING — Phase 3/5/6/7A/7B user-run artifacts VERIFIED. Phase 8 code and synt
 ```text
 Branch: main (tracks origin/main)
 Commit: See `git log -1`; original remote base is ca2d150.
-Command: run_phase7b.bat check; phase7b_report --check-only (1m/5m); run_phase8.bat check; synthetic Phase 8 resume tests; python -m unittest discover -s tests -q.
-Result: Phase 7B 748/748 days and 688 scored days per timeframe; checkpoints and reports recomputed exactly. Phase 8 read-only preflight valid at 0/381 final days per timeframe; full run is reserved for user.
+Command: run_phase8.bat check; phase8_report --check-only (1m/5m); read-only review of final reports and hashes.
+Result: Phase 8 complete 381/381 days per timeframe; 1m 90,478 bars, 5m 17,474 bars and 76/76 fits successful. Both reports recomputed exactly. Locked 5m model had 0.2253% worse final pinball than predeclared Empirical control.
 Date: 2026-09-23
 ```
 
 ## Current modifications
 
 ```text
-Phase 8 adds separate code/config/runner/tests/docs only. Phase 3–7B source/config/completed artifacts untouched; official Phase 8 output path absent.
+Documentation-only final assessment in docs/phase8_final_assessment.md and status updates. Phase 3–8 code/config/checkpoints/predictions/reports untouched.
 ```
 
 ## Blockers
@@ -1516,13 +1516,13 @@ Validation: run_phase7b.bat check and both phase7b_report --check-only passed on
 Experiment ID: PHASE8-V1
 Run IDs: PHASE8-V1-1m; PHASE8-V1-5m
 Locked models: 1m Empirical EWMA HL30; 5m Normal Mixture 2 HL30 with expanding past-only PIT calibration
-Checkpoint: outputs/phase8_v1/<timeframe>/latest.json (official full user-run pending)
+Checkpoint: outputs/phase8_v1/<timeframe>/latest.json (user-run complete: 381/381 both)
 Predictions: outputs/phase8_v1/<timeframe>/predictions/<day>.csv
 Daily diagnostics: outputs/phase8_v1/<timeframe>/daily/<day>.json
 5m final PIT: outputs/phase8_v1/5m/pits/<day>.npy
-Reports: outputs/phase8_v1/<timeframe>/report.json (pending)
+Reports: outputs/phase8_v1/<timeframe>/report.json (both recomputed and verified)
 Config: configs/phase8_v1.json; frozen hashes of verified Phase 7B reports
-Validation: read-only run_phase8.bat check passed 0/381 days each; synthetic checkpoint/resume/fit-cadence tests passed. Full final run reserved for user.
+Validation: run_phase8.bat check passed 381/381 days each; both phase8_report --check-only passed. 1m: 90,478 bars, no fits; 5m: 17,474 bars, 76 fits, zero failures. See docs/phase8_final_assessment.md for immutable result and report/checkpoint hashes.
 ```
 
 ```text
@@ -2114,6 +2114,19 @@ Artifacts: Config pins both verified Phase 7B report hashes. Phase 8 artifacts w
 Remaining: User runs run_phase8.bat check then run_phase8.bat on compute machine, returns outputs/phase8_v1/ for integrity and one-shot final evaluation. Timezone and rollover metadata remain unresolved.
 ```
 
+## 2026-09-23 — Phase 8 final verification and negative-result record
+
+```text
+Status: PHASE8-V1 USER-RUN VERIFIED; result recorded. No Phase 9 or successor model approved.
+Changes: Added docs/phase8_final_assessment.md and updated status/registry only. No code, config, checkpoint, prediction or report mutation.
+Validation: run_phase8.bat check passed 381/381 each; phase8_report --check-only reproduced both reports. 1m: 90,478 bars, pinball 3.015375e-05, 95% coverage 94.968%. 5m: 17,474 paired bars; calibrated Mixture 2 pinball 7.259693e-05 versus Empirical HL30 7.243372e-05 (+0.2253% loss), 95% coverage 94.678% versus 94.941%; 76 fit attempts, zero failures. Day-block bootstrap CI for selected-minus-control is strictly positive; p=0.02249. 1m exceedances remain clustered.
+Experiment ID: PHASE8-V1; model lock DEC-005 remains the historical pre-final decision, not a claim of success.
+Latest checkpoint: outputs/phase8_v1/1m/latest.json and 5m/latest.json complete 381/381.
+Best checkpoint: N/A; final test is not an optimization stage.
+Artifacts: Both final reports and checkpoints verified; exact SHA-256 values in docs/phase8_final_assessment.md.
+Remaining: Discuss whether to prioritize source metadata audit, conditional-calibration failure analysis (exploratory only), or a separately scoped Phase 9. Do not select a new 5m winner on this final period.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -2185,15 +2198,14 @@ Waiting for user action on: Full Phase 7B .bat run and returned trial artifacts.
 The handoff block above is historical and superseded by this current handoff:
 
 ```text
-Current task: Hand off frozen Phase 8 final-test package for user execution and one-shot artifact review.
-Current status: Phase 3/5/6/7A/7B user-run verified; DEC-005 locked models; Phase 8 code/tests/preflight pass, official run pending.
-Approved scope: User explicitly approved 1m Empirical EWMA HL30 and 5m PIT-calibrated Normal Mixture 2 HL30, plus Phase 8 preparation. No grid, trading rule or final-set retuning.
-Implemented: New Phase 8 config/runner/report/batch/tests and docs. Strict Phase 7B report hashes; 5m fit cadence continues from development; 60 prior trading days per fit; PIT updated only after each final day; atomic per-fit/day checkpoint and resume.
-Validation: Phase 7B both reports rechecked; Phase 8 read-only preflight 0/381 each; full unittest suite 48 tests passed including synthetic Phase 8 resume, corruption rejection, fit failure and refit cadence. No official final prediction locally.
-Experiment: PHASE8-V1. Official outputs/phase8_v1/ absent; upstream Phase 7B 748/748 each complete.
-Next: User runs run_phase8.bat check and then run_phase8.bat on compute machine; return outputs/phase8_v1/ for final integrity and one-shot result review.
-Do NOT: Retune on 2025–2026 outcomes, run full fitting locally, or alter DATA-V1 / completed Phase 7A/7B artifacts.
-Open metadata: Source timezone and contract rollover policy remain unverified.
+Current task: Discuss next research scope after recording the one-shot Phase 8 final result.
+Current status: Phase 3/5/6/7A/7B/8 user-run verified; Phase 8 final assessment recorded. 5m locked calibrated Mixture 2 underperformed predeclared Empirical HL30 control on final pinball; 1m overall coverage near nominal but exceedances clustered. No Phase 9 or replacement winner approved.
+Approved scope: User asked to record the Phase 8 conclusion and discuss issues next; documentation only, no new fitting/model/trading code.
+Implemented: docs/phase8_final_assessment.md and current status/registry updates; all prior code/config/artifacts unchanged.
+Validation: run_phase8.bat check passed 381/381 each and both phase8_report --check-only passed; exact artifact hashes in final assessment.
+Experiment: PHASE8-V1 complete; DEC-005 remains the historical pre-final model lock, not a statement that 5m passed final.
+Next: Discuss source timezone/contract rollover, conditional calibration and 5m generalization; decide any new Phase 9 scope before coding. Any post-final model research is exploratory until verified on genuinely later data.
+Do NOT: Retune on 2025–2026 and call the same period independent final, overwrite Phase 8 outputs or silently promote the 5m Empirical control to a new locked winner.
 ```
 
 AI mới phải đọc phần này trước khi tiếp tục.
@@ -2202,30 +2214,21 @@ AI mới phải đọc phần này trước khi tiếp tục.
 
 # 54. CURRENT CHECKPOINT STATUS
 
-Archived Phase 7B checkpoint snapshot (superseded by the current override below):
-
 ```text
-Experiment: PHASE7B-V1 full user-run pending; upstream PHASE7A-V1 and Phase 3/5/6 complete
-Run: PHASE7B-V1-1m and PHASE7B-V1-5m; completed Phase 7A HL30 sources reused
-
-Latest checkpoint: Official outputs/phase7b_v1/<timeframe>/latest.json absent; final-source bounded smoke outputs/phase7b_smoke_v2/<timeframe>/latest.json exists.
-Created: Official Phase 7B not yet; ignored bounded smoke on 2026-09-23.
-Progress: Official 0/748 per timeframe at read-only preflight. Bounded smoke 61/748 per timeframe, with 60 warmup days and one scored day. Upstream Phase 7A all four trials 748/748.
-
-Best checkpoint: N/A
-Metric: N/A
-Value: N/A
-
-Resume status: Phase 7B synthetic interruption/resume and bounded real 60→61 day resume VERIFIED; full user-run NOT VERIFIED.
-
-Last successful resume test: 2026-09-23, bounded 1m/5m Phase 7B warmup checkpoint 60→61 day generated first calibrated forecast and passed hash check. BASELINE-V1, DISTRIBUTION-WF-V1, SELECTION-V1 and PHASE7A-V1 remain complete and artifact-verified.
+Experiment: PHASE8-V1 final test complete; upstream PHASE7B-V1 and prior phases complete
+Run: PHASE8-V1-1m and PHASE8-V1-5m, locked by DEC-005
+Latest checkpoint: outputs/phase8_v1/<timeframe>/latest.json
+Progress: Both 381/381 final trading days; 1m 90,478 scored bars; 5m 17,474 scored bars and 76/76 fits successful.
+Best checkpoint: N/A — one-shot final evaluation, no optimization
+Primary metric: Mean pinball equally weighted over five central coverages
+Value: 1m selected 3.015375e-05; 5m selected 7.259693e-05 versus Empirical control 7.243372e-05 (+0.2253% loss).
+Integrity: Checkpoint/prediction/daily/PIT hashes verified by run_phase8.bat check; both reports recomputed exactly by phase8_report --check-only. Exact checkpoint and report SHA-256 in docs/phase8_final_assessment.md.
+Resume status: Full user-run complete. Preserve outputs/phase8_v1 unchanged.
 ```
 
 ---
 
 # 55. NEXT ACTIONS
-
-Current checkpoint override (supersedes the historical Phase 7B-pending block above): PHASE7B-V1 is complete 748/748 for both 1m/5m, with 688 scored days each; PHASE8-V1 official checkpoint is absent and read-only preflight found 0/381 final days on both timeframes. No `best` checkpoint exists because the final test does not optimize. Synthetic Phase 8 resume/integrity was verified; full user-run remains pending.
 
 ```text
 [x] Confirm bar-start source timestamp labeling with user; source timezone and contract rollover rule remain open.
@@ -2243,7 +2246,9 @@ Current checkpoint override (supersedes the historical Phase 7B-pending block ab
 [x] User ran run_phase7b.bat; both 748/748 checkpoints and 688-day reports verified.
 [x] User approved DEC-005: 1m Empirical EWMA HL30; 5m PIT-calibrated Mixture 2 HL30.
 [x] Prepare Phase 8 frozen runner, checkpointed .bat, report and synthetic tests; read-only preflight 0/381 each.
-[ ] User runs run_phase8.bat on compute machine; verify final artifacts and report once without retuning.
+[x] User ran run_phase8.bat; 381/381 checkpoints and both final reports verified.
+[x] Record Phase 8 result, including negative 5m model-vs-control outcome, without changing the model lock.
+[ ] Discuss source metadata, conditional calibration and next research objective; approve any new Phase 9 scope separately.
 ```
 
 Danh sách này không phải authorization để code.
