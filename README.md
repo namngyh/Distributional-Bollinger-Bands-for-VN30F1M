@@ -1,6 +1,6 @@
 # Distributional Bollinger Bands for VN30F1M
 
-**Trạng thái:** Phase 0–2 đã hoàn thành phần nền tảng; phase 3 baseline 1m/5m đã được người dùng chạy và xác minh artifact. Fit các phân phối ứng viên và backtest chưa chạy.
+**Trạng thái:** Phase 0–2 đã hoàn thành phần nền tảng; phase 3 baseline 1m/5m đã được người dùng chạy và xác minh artifact. Phase 4A có thư viện fit sáu phân phối và kiểm thử nhẹ; full distribution walk-forward và backtest chưa chạy.
 
 Xem [lộ trình nghiên cứu](docs/research_plan.md) và [data contract](docs/data_contract.md). Dataset gốc `ohlc_export.csv` được giữ nguyên tại root và không đưa vào Git.
 
@@ -34,6 +34,12 @@ Script chạy lần lượt 1m và 5m, tự nhận checkpoint hợp lệ trong `
 
 Lần chạy này chỉ phát dự báo development giai đoạn 2022–2024. Người dùng đã khóa 2025–17/07/2026 làm final test chưa dùng để chọn mô hình. Tham số và lịch chạy được ghi ở [baseline_v1.json](configs/baseline_v1.json); chi tiết tại [research plan](docs/research_plan.md).
 
+## Phase 4A: fit phân phối (chưa chạy walk-forward)
+
+`distributional_bands.distributions` cung cấp `fit_distribution(model, historical_residuals, config)` cho `normal`, `student_t`, `ged`, `nig`, `gh` và `normal_mixture_2`. Kết quả có `cdf`, `ppf`, `logpdf`, tham số và diagnostics hội tụ. Đầu vào phải là residual **chỉ từ quá khứ** do caller cung cấp; module không tự đọc dữ liệu hay truy cập final test. Fit thất bại sẽ ném `FitError`, không thay ngầm bằng Normal. Cấu hình versioned ở [distribution_fit_v1.json](configs/distribution_fit_v1.json).
+
+Kiểm thử nhẹ bằng `python -m unittest discover -s tests -v`. Full fit/walk-forward cho cả lịch sử sẽ thuộc Phase 5 và cần `.bat` có checkpoint; chưa có lệnh full run ở Phase 4A.
+
 Project này nghiên cứu việc **xây dựng và kiểm định Bollinger Band dựa trên các phân phối xác suất khác nhau** đối với hợp đồng tương lai **VN30F1M**, sử dụng dữ liệu nến **1 phút** và triển khai bằng Python.
 
 Bollinger Band truyền thống sử dụng trung bình động và độ lệch chuẩn để xác định vùng giá bất thường. Tuy nhiên, lợi suất tài chính thường có các đặc điểm như **fat tails, skewness và volatility clustering**, khiến giả định về một phân phối đối xứng hoặc việc sử dụng cố định khoảng cách \(k\sigma\) có thể không phản ánh chính xác xác suất xuất hiện của các biến động cực đoan.
@@ -50,6 +56,8 @@ Các phân phối sẽ được xem xét có thể bao gồm:
 - GED
 - Skewed GED
 - Normal Inverse Gaussian (NIG)
+- Generalized Hyperbolic (GH)
+- Normal Mixture
 - và các phân phối heavy-tail phù hợp khác.
 
 Thay vì chỉ xây Bollinger Band dưới dạng:

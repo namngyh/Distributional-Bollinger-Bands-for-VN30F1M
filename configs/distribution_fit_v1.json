@@ -1,0 +1,13 @@
+{
+  "experiment_id": "DISTRIBUTION-FIT-V1",
+  "models": ["normal", "student_t", "ged", "nig", "gh", "normal_mixture_2"],
+  "min_observations": 80,
+  "mle_max_iter": 150,
+  "mle_starts": 3,
+  "mixture_max_iter": 300,
+  "mixture_starts": 5,
+  "mixture_tolerance": 1e-5,
+  "mixture_variance_floor": 1e-4,
+  "mixture_weight_floor": 0.01,
+  "seed": 20260923
+}

@@ -48,6 +48,14 @@ Mô hình `r[t+1] = mu[t+1|t] + sigma[t+1|t] * z[t+1]`. Vòng so sánh phân ph�
 
 NIG là trường hợp con của GH, nhưng vẫn được so sánh riêng để xem tham số bổ sung của GH có cải thiện dự báo OOS không. Các phân phối phải có trung bình 0 và phương sai 1 sau chuẩn hóa trước khi đi vào công thức band.
 
+### Phase 4A: thư viện fit, chưa chọn mô hình
+
+`src/distributional_bands/distributions.py` triển khai Normal, Student-t, GED, NIG, GH và Normal Mixture hai thành phần. Các họ Student-t/GED/NIG/GH fit bằng MLE có biên tham số và ba điểm khởi tạo; GH và NIG giữ `|b|<a` bằng tham số tỷ lệ có biên. Normal dùng ước lượng đóng. Mixture dùng EM với năm điểm khởi tạo theo seed, sàn phương sai/trọng số, kiểm tra hội tụ; quantile được đảo từ CDF bằng root finding. Tham số, likelihood **của luật sau chuẩn hóa**, số lần khởi tạo hội tụ và cảnh báo chạm biên được lưu trong kết quả. Fit thất bại nêu lỗi, không dùng fallback âm thầm. Mỗi luật sau fit được biến đổi affine về mean 0, variance 1; vì vậy đây là MLE/EM cho họ raw rồi chuẩn hóa, không phải tối ưu likelihood lại dưới ràng buộc mean/variance của luật cuối.
+
+Config [distribution_fit_v1.json](../configs/distribution_fit_v1.json) khóa seed và ngưỡng số học. Ngưỡng EM `1e-5` được chọn sau smoke fit rất nhỏ để tránh tiêu tốn hàng trăm bước khi hai thành phần gần không định danh; **không** được chọn bằng metric OOS. Unit tests dùng dữ liệu tổng hợp; smoke trên 120 residual đầu 2017 cho mỗi timeframe chỉ kiểm tra độ ổn định số, không phải dự báo hay so sánh chất lượng. `fit_distribution` chỉ nhận mảng residual do caller chuyển vào, nên Phase 5 phải chịu trách nhiệm tạo residual và giới hạn lịch sử trước thời điểm forecast. Skewed-t, skewed-GED và Mixture ba thành phần thuộc 4B trước khi chọn winner.
+
+API và tham số phân phối tham chiếu tài liệu chính thức [SciPy GH](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.genhyperbolic.html), [NIG](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.norminvgauss.html) và [GED](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gennorm.html).
+
 Primary comparison: mean quantile/pinball loss trên các tail đã định trước. Secondary: interval score, coverage error và log score khi phù hợp. Guardrails: độc lập của chuỗi vượt band, PIT, độ ổn định theo năm/giờ/regime và tỷ lệ fit thất bại. Nếu khác biệt nằm trong bất định thống kê, ưu tiên mô hình đơn giản hơn.
 
 ## Chia dữ liệu và nguyên tắc thời gian
@@ -62,4 +70,4 @@ AI chạy trực tiếp các kiểm tra nhẹ (unit/smoke tests, audit, benchmar
 
 ## Trạng thái hiện tại
 
-Phase 0–2: đã triển khai và kiểm thử. Phase 3: full user-run cho 1m/5m đã được xác minh bằng checkpoint và artifact hashes; chưa chọn distribution. Phase 4–10: chưa triển khai. Người dùng xác nhận timestamp là đầu nến; timezone nguồn và rollover vẫn chưa xác minh, như ghi trong [data contract](data_contract.md).
+Phase 0–2: đã triển khai và kiểm thử. Phase 3: full user-run cho 1m/5m đã được xác minh bằng checkpoint và artifact hashes; chưa chọn distribution. Phase 4A: thư viện fit đã triển khai và kiểm thử nhẹ, chưa có full walk-forward. Phase 4B–10: chưa triển khai. Người dùng xác nhận timestamp là đầu nến; timezone nguồn và rollover vẫn chưa xác minh, như ghi trong [data contract](data_contract.md).

@@ -185,7 +185,7 @@ https://github.com/namngyh/Distributional-Bollinger-Bands-for-VN30F1M.git (origi
 Primary language:
 Python
 Framework:
-pandas / NumPy data pipeline (phase 0–2)
+pandas / NumPy data pipeline, SciPy distribution fitting
 Database:
 None
 Package manager:
@@ -198,8 +198,8 @@ unittest
 
 | Path | Purpose |
 |---|---|
-| `src/distributional_bands/` | Data preparation and CLI |
-| `configs/data_v1.json` | Versioned session/data policy |
+| `src/distributional_bands/` | Data preparation, baseline and distribution fitting |
+| `configs/` | Versioned data, baseline and fit policies |
 | `docs/` | Research plan and data contract |
 | `tests/` | Synthetic data validation |
 | `outputs/` | Generated datasets and manifest; never overwrite |
@@ -212,12 +212,12 @@ API: None
 Worker: None
 CLI: python -m distributional_bands.cli audit|prepare
 Baseline: python -m distributional_bands.baseline --timeframe 1m|5m ...; run_baseline.bat for full development run
-Training: Distribution fitting not implemented
+Training: `distributional_bands.distributions.fit_distribution` (bounded fit library only; full walk-forward not implemented)
 Backtest: Not implemented
 Tests: python -m unittest discover -s tests -v
-Configuration: configs/data_v1.json; configs/baseline_v1.json
+Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v1.json
 Checkpoints: outputs/baseline_v1/<timeframe>/latest.json (full run); bounded smoke checkpoints in outputs/baseline_smoke_v1/
-Experiments: BASELINE-V1 (development forecasts only)
+Experiments: BASELINE-V1 (development forecasts); DISTRIBUTION-FIT-V1 is configuration/library only, no full run
 Outputs: outputs/data_v1/; outputs/baseline_v1/ (user-run artifacts verified)
 Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
@@ -235,7 +235,7 @@ Build and compare 1m/5m distributional bands, prioritizing out-of-sample forecas
 ## Current task
 
 ```text
-Phase 3 full development baseline artifacts verified for both timeframes. Next: obtain approval for the scoped phase 4 distribution-fitting implementation.
+Phase 4A fit/quantile library for six candidates is implemented and lightly tested. Next: approve phase 4B skewed families and then phase 5 checkpointed OOS walk-forward.
 ```
 
 ## Current state
@@ -257,7 +257,7 @@ DONE
 Current:
 
 ```text
-DISCUSSING — phase 3 full user-run artifacts verified; phase 4 scope awaits approval.
+TESTING — phase 4A unit and bounded real-data smoke tests passed; full distribution walk-forward has not run.
 ```
 
 ## Last known working state
@@ -265,15 +265,15 @@ DISCUSSING — phase 3 full user-run artifacts verified; phase 4 scope awaits ap
 ```text
 Branch: main (tracks origin/main)
 Commit: See `git log -1`; original remote base is ca2d150.
-Command: python -m unittest discover -s tests -v; bounded `python -m distributional_bands.baseline ... --max-days` for 1m and 5m; completed-run validation via `python -m distributional_bands.baseline` for each timeframe.
-Result: Eleven unit tests passed; bounded resume passed; completed-run validation reported `already complete; validated checkpoint and artifacts` for 1m and 5m, each through 2024-12-31.
+Command: python -m unittest discover -s tests -v; bounded 120-observation 1m/5m in-sample fit smoke; git diff --check.
+Result: Eighteen unit tests passed; all six phase 4A candidates fitted on each bounded historical sample; no full walk-forward or final-test access. Existing completed baseline artifacts remain verified.
 Date: 2026-09-23
 ```
 
 ## Current modifications
 
 ```text
-Phase 3 code, config and artifacts are unchanged. Documentation records user-confirmed timestamp and split plus verified baseline artifacts. Raw CSV and all outputs are ignored by Git and remain local.
+Phase 4A adds distributions.py, distribution_fit_v1.json, test_distributions.py and SciPy dependency; documentation updated. Baseline code/config/checkpoints and DATA-V1 artifacts are unchanged. Raw CSV and all outputs are ignored by Git and remain local.
 ```
 
 ## Blockers
@@ -1687,6 +1687,7 @@ Ví dụ:
 - Timestamp is a bar-start label per user confirmation on 2026-09-23; original DATA-V1 config/manifest still records its earlier unverified state. Source timezone and rollover rule remain unverified.
 - DATA-V1 intentionally excludes 11:30, 14:30, 14:45 and all cross-session targets.
 - A 5m bar requires all five source minutes; partial buckets must not enter forecasts.
+- GH/NIG fits can reach parameter bounds and Normal Mixture EM can be weakly identified; record convergence/bound diagnostics and never silently substitute another law.
 - Never use future candle information in signals or fit a distribution with test data.
 - Final test must remain untouched while selecting distributions and parameters.
 - Check checkpoint before restarting future long walk-forward runs.
@@ -1705,6 +1706,22 @@ Ví dụ:
 ---
 
 # 50. ERROR & LESSONS LOG
+
+## ERR-001 — Strict EM tolerance exhausted bounded 5m smoke
+
+```text
+Date: 2026-09-23
+Context: Phase 4A two-component Normal Mixture on 120 early 5m residuals (in-sample numerical smoke only).
+Symptom: Five EM starts reached 300 iterations without meeting the initial 1e-6 relative likelihood tolerance.
+Root cause: Slowly converging, weakly separated mixture on a small sample; no nonfinite values or component collapse.
+Incorrect approach: Treat a valid but unfinished EM run as converged or silently substitute Normal.
+Correct solution: Keep explicit failure handling and set a documented numerical tolerance of 1e-5, which converged on the bounded 5m smoke in 52 iterations. Full-window failure rates must be reported in phase 5.
+Prevention rule: Preserve convergence diagnostics and do not tune this tolerance using OOS forecast scores.
+Affected files: configs/distribution_fit_v1.json, src/distributional_bands/distributions.py, tests/test_distributions.py.
+Checkpoint impact: None; phase 4A produced no long-run checkpoint.
+Experiment impact: No OOS fit or model-selection result was generated.
+Status: FIXED for bounded smoke; MONITOR in full walk-forward.
+```
 
 Template:
 
@@ -1877,6 +1894,21 @@ Artifacts: outputs/baseline_v1/<timeframe>/{run_manifest.json,latest.json,metric
 Remaining: Discuss and approve phase 4 fit/quantile scope; verify rollover and source timezone when metadata becomes available.
 ```
 
+## 2026-09-23 — Phase 4A bounded distribution fitting
+
+```text
+Status: IMPLEMENTED and TESTED locally; full OOS distribution walk-forward NOT RUN.
+Changes: Added Normal, Student-t, GED, NIG, GH and two-component Normal Mixture fitting on caller-supplied historical residuals; quantile/CDF/log-density interface, explicit convergence/failure diagnostics, versioned numeric config and synthetic tests. Added SciPy dependency.
+Files changed: src/distributional_bands/distributions.py, configs/distribution_fit_v1.json, tests/test_distributions.py, pyproject.toml, README.md, docs/research_plan.md, PROCESS.md.
+Validation: Eighteen unittest tests passed; six candidates fitted on bounded 120-observation historical samples from each timeframe. Mixture EM tolerance changed from 1e-6 to 1e-5 after the initial bounded 5m sample failed to converge within 300 iterations; this was numerical stability testing, not OOS metric selection.
+Experiment ID: DISTRIBUTION-FIT-V1 configuration; no full experiment run or OOS metric artifact.
+Rollback plan: Previous commit e0c647a; phase 4A source/config can be reverted independently, while BASELINE-V1 and DATA-V1 artifacts remain untouched.
+Latest checkpoint: N/A for bounded fits; BASELINE-V1 completed checkpoints preserved.
+Best checkpoint: N/A; no selection run.
+Artifacts: Source, config and test only; no full distribution predictions or metrics.
+Remaining: Phase 4B skewed-t/skewed-GED and three-component mixture sensitivity; phase 5 chronological OOS runner with portable .bat and checkpoint/resume. Source timezone and rollover remain open.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -1910,23 +1942,23 @@ Không dump toàn bộ terminal log.
 Khi đổi AI hoặc kết thúc session dang dở:
 
 ```text
-Current task: Phase 4 distribution-fitting scope discussion following verified phase 3 baseline.
+Current task: Phase 4A fit/quantile library implementation following verified phase 3 baseline.
 
-Current status: Full phase 3 user-run artifacts VERIFIED; phase 4 not implemented or approved yet.
+Current status: Phase 4A IMPLEMENTED and locally TESTED; full phase 4/5 walk-forward NOT RUN. Phase 3 user-run artifacts remain VERIFIED.
 
-Approved scope: Documentation-only status update recording the confirmed timestamp/split and verified baseline artifacts. Phase 4 implementation still requires approval.
+Approved scope: User explicitly asked to start phase 4 after the phase 4A proposal. Implement six fit candidates, config, tests and docs; defer skewed families, full walk-forward and backtest.
 
-What has been investigated: Raw CSV schema, chronology, session boundaries, missing minutes, return outliers, buy/sell volume mismatch, completed 1m/5m baseline checkpoint and artifact hashes.
+What has been investigated: Baseline and DATA-V1 artifacts; SciPy GH/NIG/GED APIs and parameter constraints; synthetic quantiles/convergence; bounded historical numerical smoke.
 
-What has been implemented: Phase 0–2 data foundation plus phase 3 baseline runner, metrics, daily checkpoint/resume, unit tests and run_baseline.bat.
+What has been implemented: Phase 0–3 data/baseline foundation plus phase 4A fit library with Normal, Student-t, GED, NIG, GH and Normal Mixture 2, explicit failure diagnostics and unit tests.
 
-Files touched this documentation task: README.md, docs/data_contract.md, docs/research_plan.md, PROCESS.md. No source/config/output files changed.
+Files touched this task: distributions.py, distribution_fit_v1.json, test_distributions.py, pyproject.toml, README.md, docs/research_plan.md, PROCESS.md. Baseline code/config/outputs untouched.
 
 Pre-existing user changes: Git worktree was clean before this task. Local raw CSV and user-generated outputs/data_v1/ were preserved and remain ignored by Git.
 
-Tests already run: Eleven unittest tests and bounded resume in the prior task; completed-run validation for 1m and 5m confirmed checkpoint and artifact hashes in this task.
+Tests already run: Eighteen unittest tests and bounded 120-observation in-sample smoke for both timeframes. No full model fitting or OOS selection run.
 
-Experiment ID: BASELINE-V1.
+Experiment ID: DISTRIBUTION-FIT-V1 config only; BASELINE-V1 completed artifacts remain available.
 
 Latest checkpoint: outputs/baseline_v1/<timeframe>/latest.json, complete through 2024-12-31.
 
@@ -1936,11 +1968,11 @@ Can resume: VERIFIED for bounded smoke; full run completed, so no resume needed.
 
 Known issue: User confirmed bar-start timestamps. Source timezone and rollover metadata remain absent. Original DATA-V1 config/manifest retain the earlier unverified timestamp label to preserve hashes.
 
-Next recommended action: Present phase 4 model fitting, validation and checkpoint design for approval; then implement only the approved scope.
+Next recommended action: Review phase 4B scope, then build phase 5 chronological OOS runner with portable .bat and atomic checkpoints after approval. Use only development data through 2024 for selection.
 
 Do NOT: Use 2025–2026-07-17 for model/parameter selection; do not run full fitting/backtest locally or rewrite versioned DATA-V1 artifacts.
 
-Waiting for user decision on: Phase 4 implementation scope. Rollover and source timezone metadata can be supplied later.
+Waiting for user decision on: Phase 4B/phase 5 scope. Rollover and source timezone metadata can be supplied later.
 ```
 
 AI mới phải đọc phần này trước khi tiếp tục.
@@ -1974,7 +2006,8 @@ Last successful resume test: 2026-09-23, resumed bounded 1m and 5m smoke from da
 [x] Confirm bar-start source timestamp labeling with user; source timezone and contract rollover rule remain open.
 [x] Lock development OOS 2022–2024 and untouched final 2025–2026-07-17 with user.
 [x] Validate completed BASELINE-V1 1m/5m checkpoints, predictions and metrics.
-[ ] Discuss and approve phase 4 distribution fitting after the baseline gate.
+[x] Approve and locally test phase 4A fitting/quantile library; no full OOS run yet.
+[ ] Discuss phase 4B skewed families and phase 5 checkpointed OOS runner.
 ```
 
 Danh sách này không phải authorization để code.
