@@ -612,6 +612,14 @@ AI không được nâng trạng thái lên `VERIFIED` nếu bằng chứng chư
 
 # 14. REAL RUN PROTOCOL
 
+## Execution rule agreed on 2026-09-23
+
+- AI chạy trực tiếp các tác vụ nhẹ và an toàn: đọc/audit dữ liệu, unit/smoke tests, lint, kiểm tra schema và benchmark nhỏ. Ghi lại command và kết quả.
+- Với tác vụ nặng hoặc kéo dài (full walk-forward, fit nhiều distribution/fold, optimization, full backtest, Monte Carlo lớn), AI chuẩn bị `.bat` để người dùng chạy trên máy khác. AI không tự chạy full job.
+- `.bat` phải dùng đường dẫn tương đối với chính file (`%~dp0`) hoặc tham số rõ ràng; không hardcode đường dẫn máy phát triển. Script phải kiểm tra Python, dependency, input, config, dung lượng output và checkpoint trước khi chạy.
+- Máy chạy khác phải tạo được environment snapshot và manifest gồm dataset/config/code hash, experiment ID, run ID, seed, thời gian chạy và output path. Không ghi đè run đã hoàn tất.
+- Sau khi người dùng chuyển artifact/log từ máy chạy về, AI kiểm tra integrity và cập nhật Current Checkpoint Status, Artifact Registry và Current Task Handoff. Không tuyên bố user-run verified chỉ dựa vào việc `.bat` đã được tạo.
+
 Phân biệt:
 
 ```text
@@ -686,6 +694,8 @@ Ví dụ:
 # 15. CHECKPOINT PROTOCOL
 
 Mọi tiến trình dài hoặc tốn compute phải hỗ trợ checkpoint.
+
+Checkpoint phải được lưu **trong khi job chạy**, ngay sau từng đơn vị công việc hoàn tất có thể resume (ví dụ fold, trial, cửa sổ walk-forward hoặc stage). Manifest tiến độ phải được cập nhật cùng checkpoint để có thể tiếp tục trên cùng máy hoặc chuyển artifact sang máy khác.
 
 Áp dụng đặc biệt cho:
 
@@ -810,6 +820,8 @@ Every major pipeline stage
 
 Job chạy nhiều giờ không được chỉ save khi hoàn tất.
 
+Tần suất cụ thể phải được ghi trong config trước khi chạy. Với walk-forward, tối thiểu lưu sau mỗi fold/window đã hoàn tất; nếu một fold dài, bổ sung checkpoint theo số bước hoặc thời gian. `latest` và `best` có vai trò riêng; không để checkpoint mới làm mất best trước đó.
+
 ---
 
 # 20. SAFE CHECKPOINT WRITING
@@ -830,6 +842,8 @@ latest.tmp
 ```
 
 Crash khi save không được phá checkpoint hợp lệ trước đó.
+
+Checkpoint phải gắn với dataset hash, config hash, code version, experiment/run ID và vị trí tiến độ. Resume phải từ chối checkpoint không tương thích và không tạo trùng prediction/metric đã ghi.
 
 ---
 
@@ -1713,6 +1727,20 @@ Không ghi mọi typo nhỏ.
 
 # 51. DECISION LOG
 
+## DEC-001 — Light runs locally; heavy runs on another machine with resume
+
+```text
+Date: 2026-09-23
+Decision: AI runs safe, light checks directly. Heavy/full experiments are delivered as portable .bat scripts for user execution on another machine, with periodic atomic checkpoints and resume-first behavior.
+Reason: Preserve compute resources and prevent loss of long-running results.
+Alternatives considered: Run all jobs locally; save only final outputs.
+Trade-offs: Heavy results become available for verification only after the user returns artifacts/logs.
+Affected modules: Future fitting, walk-forward, optimization, backtest and experiment orchestration.
+Checkpoint compatibility: Future runs must bind checkpoints to dataset/config/code hashes and run ID.
+Revisit conditions: User changes execution environment or explicitly authorizes a specific full run here.
+Status: ACTIVE
+```
+
 Template:
 
 ## DEC-XXX — Title
@@ -1776,10 +1804,21 @@ Remaining: Verify timestamp and rollover, then discuss phase 3 baseline.
 ## 2026-09-23 — Connect Git repository
 
 ```text
-Status: Local main aligned with the original origin/main history.
-Changes: Added Git remote and prepared phase 0–2 source/doc changes for version control.
-Validation: Remote main contained only README.md at ca2d150; .gitignore excludes raw CSV and generated outputs; dataset hashes matched manifest.
-Remaining: Commit and synchronize source/doc changes; confirm source timestamp and rollover metadata before phase 3.
+Status: DONE; main tracks origin/main at a46501c.
+Changes: Added Git remote, committed and pushed phase 0–2 source/doc changes.
+Validation: Remote main contains a46501c; .gitignore excludes raw CSV and generated outputs; dataset hashes matched manifest.
+Remaining: Confirm source timestamp and rollover metadata before phase 3.
+```
+
+## 2026-09-23 — Execution and checkpoint policy
+
+```text
+Status: DOCUMENTED
+Changes: Recorded DEC-001 and portable .bat/checkpoint requirements for future heavy experiments.
+Files changed: PROCESS.md, docs/research_plan.md.
+Validation: Documentation review and git diff --check; no computational experiment run.
+Latest checkpoint: N/A; no long-run model job has started.
+Remaining: Implement and test checkpoint/resume when phase 5 is approved.
 ```
 
 Template:
@@ -1841,7 +1880,7 @@ Can resume: N/A for data preparation; long-run modeling has not begun.
 
 Known issue: Source timestamp convention and rollover metadata absent.
 
-Next recommended action: Confirm source metadata, inspect DATA-V1 report, then plan phase 3 baseline. Work from origin/main.
+Next recommended action: Confirm source metadata, inspect DATA-V1 report, then plan phase 3 baseline. Work from origin/main. Follow DEC-001 for light/heavy execution and checkpoints.
 
 Do NOT: Treat 2025–2026 as finalized untouched test until research split is approved; do not run full fitting/backtest yet.
 
@@ -2095,6 +2134,7 @@ Trước train/backtest/optimization:
 [ ] Existing checkpoint checked
 [ ] Resume possibility checked
 [ ] Checkpoint interval defined
+[ ] Checkpoint granularity prevents loss of a completed fold/window/trial
 [ ] Latest checkpoint configured
 [ ] Best checkpoint configured
 [ ] Best metric defined
@@ -2104,6 +2144,8 @@ Trước train/backtest/optimization:
 [ ] Disk space checked
 [ ] Resource budget checked
 [ ] Save/load checkpoint tested
+[ ] Interrupted-run resume tested without duplicate outputs
+[ ] .bat uses portable paths and checks the target-machine environment
 [ ] .bat prepared for real run
 ```
 

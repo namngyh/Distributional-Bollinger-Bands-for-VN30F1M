@@ -44,6 +44,10 @@ Mốc đề xuất để khóa trước phase 5: phát triển và walk-forward 
 
 Mỗi forecast chỉ dùng thông tin có sẵn khi bar nguồn đã hoàn tất. Prediction, target, dataset hash, policy hash, config và mã phiên bản phải đi cùng artifact. Full walk-forward, optimization và backtest được cung cấp bằng `.bat` để người dùng chạy theo `PROCESS.md`.
 
+## Quy tắc chạy và checkpoint
+
+AI chạy trực tiếp các kiểm tra nhẹ (unit/smoke tests, audit, benchmark nhỏ). Full fitting, walk-forward, optimization và backtest có thể tốn nhiều thời gian sẽ được đóng gói thành `.bat` dùng đường dẫn portable để chạy trên máy khác. Mỗi job phải kiểm tra checkpoint hợp lệ và resume trước khi bắt đầu mới; lưu tiến độ định kỳ, tối thiểu sau từng fold/window/trial hoàn tất, bằng cách ghi an toàn qua file tạm rồi thay thế. `latest` phục vụ resume, `best` lưu kết quả tốt nhất theo metric đã định nghĩa trước. Checkpoint và manifest ghi dataset/config/code hash, run ID và vị trí tiến độ để tránh mất hoặc ghi trùng kết quả.
+
 ## Trạng thái hiện tại
 
 Phase 0–2: triển khai nền tảng và kiểm thử. Phase 3–10: chưa triển khai. Các unknown về timestamp convention và rollover được giữ rõ trong [data contract](data_contract.md).
