@@ -2,7 +2,7 @@
 
 **Câu hỏi nghiên cứu:** phân phối xác suất nào của phần dư chuẩn hóa \(z_t\) (trong \(r=\mu+\sigma z\)) cho dự báo ngoài mẫu tốt nhất đối với lợi suất VN30F1M ở khung 1 phút và 5 phút? Đây là nghiên cứu thuần về dự báo phân phối; **tín hiệu giao dịch và backtest nằm ngoài phạm vi** (DEC-006).
 
-**Trạng thái (2026-09-25):** Phase 0–8 hoàn tất và đã xác minh, kể cả lần đánh giá duy nhất trên tập kiểm thử cuối 2025-01-01–2026-07-17 ([đánh giá Phase 8](docs/phase8_final_assessment.md)). Phase 9 (chẩn đoán \(z_t\), so sánh mở rộng, mô phỏng Monte Carlo; mang tính khám phá) đang được đề xuất, chưa duyệt. Phase 10 (tổng hợp và tái lập) chưa bắt đầu.
+**Trạng thái (2026-09-25):** Phase 0–8 hoàn tất và đã xác minh, kể cả lần đánh giá duy nhất trên tập kiểm thử cuối 2025-01-01–2026-07-17 ([đánh giá Phase 8](docs/phase8_final_assessment.md)). Phase 9A (chẩn đoán \(z_t\), mang tính khám phá) đã xong; 9B–9F đang được đề xuất, chưa duyệt. Phase 10 (tổng hợp và tái lập) chưa bắt đầu.
 
 Tài liệu chính:
 - [Kế hoạch nghiên cứu](docs/research_plan.md): bảng phase, phương pháp, kết quả từng phase.
@@ -89,6 +89,20 @@ Chạy `run_phase8.bat`. [phase8_v1.json](configs/phase8_v1.json) cố định h
 
 Đã hoàn tất 381/381 phiên mỗi khung. Kết quả âm ở 5m là kết quả hợp lệ của mô hình đã chọn, không phải lý do để chọn lại mô hình trên chính tập này.
 
-## Phase 9 (đề xuất, chưa duyệt)
+## Phase 9A: chẩn đoán \(z_t\) (đã xong, mang tính khám phá)
 
-Chẩn đoán \(z_t\) trên tập xác thực (tự tương quan của \(z\) và \(z^2\), tính mùa vụ trong phiên, PIT theo giờ và trạng thái biến động); so sánh chín họ với \(H=30\); bảng mô tả chín họ trên 2025–2026; mô phỏng Monte Carlo đo độ chính xác của ước lượng và ảnh hưởng của sai dạng mô hình (9E: 4.000 mẫu mô phỏng, 36.000 lần ước lượng, khoảng 16–20 giờ với một tiến trình); độ nhạy theo cách chuẩn hóa thang đo (9F). Mọi kết quả sẽ mang tính khám phá; DEC-005 và PHASE8-V1 giữ nguyên. Chi tiết trong [kế hoạch nghiên cứu](docs/research_plan.md).
+Chạy (nhẹ, chỉ đọc, khoảng 10–30 giây mỗi khung; từ chối ghi đè báo cáo đã có):
+
+```powershell
+$env:PYTHONPATH = 'src'
+python -m distributional_bands.phase9a --timeframe 1m --output-dir outputs/phase9a_v1/1m
+python -m distributional_bands.phase9a --timeframe 5m --output-dir outputs/phase9a_v1/5m
+# kiểm tra lại báo cáo đã lưu:
+python -m distributional_bands.phase9a --timeframe 1m --output-dir outputs/phase9a_v1/1m --check-only
+```
+
+Kết quả chính: phương sai của \(z_t\) thay đổi 4–5 lần theo giờ trong phiên vì σ EWMA không mô tả tính mùa vụ (đầu phiên sáng σ quá lớn, cuối phiên chiều quá nhỏ). Tỷ lệ bao phủ 95% dao động khoảng 85–99% theo giờ dù tổng thể gần 95%. Ở 5m, điều chỉnh mùa vụ loại bỏ gần hết phụ thuộc chuỗi của \(z^2\); ở 1m còn cụm biến động ngắn hạn. Độ nhọn của \(z\) hầu như không đổi sau điều chỉnh: đuôi dày là đặc tính thật. Chi tiết ở mục 8 của [báo cáo](Bao_cao/bao_cao_ket_qua.tex).
+
+## Phase 9B–9F (đề xuất, chưa duyệt)
+
+Ưu tiên 9D: σ có điều chỉnh mùa vụ trong phiên, ước lượng chỉ từ dữ liệu quá khứ. Các mục khác: so sánh chín họ với \(H=30\); bảng mô tả chín họ trên 2025–2026; mô phỏng Monte Carlo đo độ chính xác của ước lượng và ảnh hưởng của sai dạng mô hình (9E: 4.000 mẫu mô phỏng, 36.000 lần ước lượng, khoảng 16–20 giờ với một tiến trình); độ nhạy theo cách chuẩn hóa thang đo (9F). Mọi kết quả sẽ mang tính khám phá; DEC-005 và PHASE8-V1 giữ nguyên. Chi tiết trong [kế hoạch nghiên cứu](docs/research_plan.md).

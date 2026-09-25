@@ -1,0 +1,23 @@
+{
+  "experiment_id": "PHASE9A-V1",
+  "development_first_date": 20220101,
+  "development_last_date": 20241231,
+  "final_test_start": 20250101,
+  "bar_minutes": {"1m": 1, "5m": 5},
+  "acf_max_lag": {"1m": 30, "5m": 12},
+  "bucket_minutes": 15,
+  "sigma_groups": 5,
+  "lagged_abs_z_edges": [1.0, 2.0, 3.0],
+  "central_coverages": [0.9, 0.95, 0.975, 0.99, 0.995],
+  "sources": {
+    "hl30": {
+      "directory": "outputs/phase7a_v1/{timeframe}/hl30",
+      "models": {"1m": ["empirical_ewma", "normal_mixture_3"],
+                 "5m": ["empirical_ewma", "normal_mixture_2"]}
+    },
+    "hl60": {
+      "directory": "outputs/distribution_wf_v1/{timeframe}",
+      "models": {"1m": [], "5m": []}
+    }
+  }
+}

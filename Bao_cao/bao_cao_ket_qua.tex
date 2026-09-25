@@ -17,12 +17,30 @@
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
 \usepackage{caption}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots}
+\pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
+% Hai màu chuỗi đã kiểm tra phân biệt được với người mù màu (dataviz validator)
+\definecolor{chuoi1}{HTML}{2A78D6}
+\definecolor{chuoi2}{HTML}{EB6834}
+\pgfplotsset{
+  bieudo/.style={
+    axis lines*=left, ymajorgrids, grid style={gray!18}, tick style={gray!60},
+    axis line style={gray!60}, tick label style={font=\scriptsize},
+    label style={font=\small}, title style={font=\small},
+    legend style={font=\scriptsize, draw=none, fill=none}, legend cell align=left,
+    scaled y ticks=false, yticklabel style={/pgf/number format/fixed},
+    /pgf/number format/use comma, /pgf/number format/1000 sep={.}},
+  bieudo gio/.style={bieudo, xtick=data, xticklabel style={rotate=90},
+    xmin=-0.6, xmax=15.6}}
 
 \setlength{\parskip}{0.45em}
 \setlength{\parindent}{0pt}
 \setlength{\tabcolsep}{4pt}
 \captionsetup{labelsep=period,font=small}
 \renewcommand{\tablename}{Bảng}
+\renewcommand{\figurename}{Hình}
 \renewcommand{\contentsname}{Mục lục}
 \renewcommand{\refname}{Tài liệu tham khảo}
 
@@ -376,6 +394,184 @@ Ba cơ chế có thể giải thích kết quả:
 \end{itemize}
 
 %=====================================================================
+\section{\texorpdfstring{Phase 9A: chẩn đoán $z_t$ trên tập xác thực}{Phase 9A: chẩn đoán z_t trên tập xác thực}}
+\label{sec:9a}
+
+\textbf{Thiết kế.} Phase 9A chỉ đọc các dự báo đã xác minh của tập xác thực 2022--2024 (hash từng file được đối chiếu với checkpoint), không ước lượng lại mô hình và không dùng tập kiểm thử cuối. Nguồn chính là $z$ với σ EWMA $H=30$ (Phase 7A), kèm phân vị của phân phối thực nghiệm và hỗn hợp chuẩn; $z$ với $H=60$ (Phase 5) dùng để so sánh. Các chẩn đoán gồm: hàm tự tương quan (ACF) của $z$ và $z^2$ chỉ trên các cặp nến trong cùng phiên, không qua khoảng trống; trung bình $z^2$ theo khối 15 phút với sai số chuẩn gom cụm theo ngày; tỷ lệ bao phủ theo khối giờ, theo nhóm ngũ phân vị của σ và theo $|z|$ của nến trước. Nếu σ đúng thì $\mathbb E[z^2]=1$ ở mọi khối giờ và mọi nhóm.
+
+\ghichu{Các nhóm (khối giờ, ngũ phân vị σ) và hệ số điều chỉnh mùa vụ được tính trên toàn bộ tập xác thực, tức trong mẫu. Kết quả Phase 9A mang tính mô tả và khám phá; nó chỉ ra nguyên nhân, không phải một mô hình mới đã được đánh giá ngoài mẫu.}
+
+\pgfplotstableread[col sep=comma]{du_lieu/9a_1m_intraday.csv}\gioMotPhut
+\pgfplotstableread[col sep=comma]{du_lieu/9a_5m_intraday.csv}\gioNamPhut
+
+\subsection{Tính mùa vụ trong phiên mà σ EWMA không theo kịp}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1, horizontal sep=1.2cm},
+  bieudo gio, width=0.49\linewidth, height=6.2cm, ymin=0, ymax=3.2]
+\nextgroupplot[title={1m}, ylabel={Trung bình $z^2$}, xticklabels from table={\gioMotPhut}{group},
+  legend style={at={(0.02,0.98)}, anchor=north west}]
+\addplot[chuoi1, thick, mark=*, mark size=1.5pt, error bars/.cd, y dir=both, y explicit,
+  error bar style={chuoi1!70}] table[x=index, y=hl30_mean_z2, y error expr=1.96*\thisrow{hl30_se_z2}]{\gioMotPhut};
+\addlegendentry{$H=30$ (khoảng tin cậy 95\%)}
+\addplot[chuoi2, thick, dashed, mark=square*, mark size=1.3pt] table[x=index, y=hl60_mean_z2]{\gioMotPhut};
+\addlegendentry{$H=60$}
+\addplot[gray!70, thin, domain=-0.6:15.6, samples=2, forget plot] {1};
+\addplot[gray!50, dotted, forget plot] coordinates {(9.5,0) (9.5,3.2)};
+\nextgroupplot[title={5m}, xticklabels from table={\gioNamPhut}{group}]
+\addplot[chuoi1, thick, mark=*, mark size=1.5pt, error bars/.cd, y dir=both, y explicit,
+  error bar style={chuoi1!70}] table[x=index, y=hl30_mean_z2, y error expr=1.96*\thisrow{hl30_se_z2}]{\gioNamPhut};
+\addplot[chuoi2, thick, dashed, mark=square*, mark size=1.3pt] table[x=index, y=hl60_mean_z2]{\gioNamPhut};
+\addplot[gray!70, thin, domain=-0.6:15.6, samples=2, forget plot] {1};
+\addplot[gray!50, dotted, forget plot] coordinates {(9.5,0) (9.5,3.2)};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Trung bình $z^2$ theo khối 15 phút (giờ bắt đầu nến). Đường ngang: giá trị lý tưởng 1. Đường chấm dọc: nghỉ trưa. Khoảng tin cậy dùng sai số chuẩn gom cụm theo ngày.}
+\label{fig:9a-gio}
+\end{figure}
+
+Hình~\ref{fig:9a-gio} cho thấy $\mathbb E[z^2]$ tăng gần như đơn điệu trong ngày: ở 1m từ khoảng 0,46--0,48 trong 45 phút đầu phiên sáng lên khoảng 2,0 lúc 14:00--14:29; ở 5m từ khoảng 0,57 lên 2,5--2,8. Các khoảng tin cậy hẹp so với chênh lệch này. Như vậy phương sai của $z$ thay đổi khoảng 4--5 lần trong ngày, trong khi mô hình giả định phương sai bằng 1.
+
+Cơ chế thể hiện rõ khi so σ dự báo với độ lớn lợi suất thực tế (căn trung bình bình phương). Ở 1m, lúc 09:00 σ trung bình là $7{,}83\times10^{-4}$ trong khi lợi suất thực tế chỉ $5{,}72\times10^{-4}$: σ EWMA chạy liên tục qua đêm nên đầu phiên sáng kế thừa mức biến động cao của cuối phiên chiều hôm trước. Lúc 14:15, lợi suất thực tế tăng lên $11{,}9\times10^{-4}$ nhưng σ chỉ đạt $7{,}72\times10^{-4}$: EWMA không theo kịp mức biến động tăng dần về cuối ngày. Ở 5m có cùng mô hình ($16{,}7$ so với $12{,}0$ lúc 09:00; $16{,}3$ so với $25{,}7$ lúc 14:15, đơn vị $10^{-4}$).
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1, horizontal sep=1.2cm},
+  bieudo gio, width=0.49\linewidth, height=6.2cm, ymin=82, ymax=100]
+\nextgroupplot[title={1m}, ylabel={Tỷ lệ bao phủ khoảng 95\% (\%)}, xticklabels from table={\gioMotPhut}{group},
+  legend style={at={(0.02,0.02)}, anchor=south west}]
+\addplot[chuoi1, thick, mark=*, mark size=1.5pt] table[x=index, y expr=100*\thisrow{empirical_ewma_cov950}]{\gioMotPhut};
+\addlegendentry{Phân phối thực nghiệm}
+\addplot[chuoi2, thick, dashed, mark=square*, mark size=1.3pt] table[x=index, y expr=100*\thisrow{normal_mixture_3_cov950}]{\gioMotPhut};
+\addlegendentry{Hỗn hợp chuẩn}
+\addplot[gray!70, thin, domain=-0.6:15.6, samples=2, forget plot] {95};
+\addplot[gray!50, dotted, forget plot] coordinates {(9.5,82) (9.5,100)};
+\nextgroupplot[title={5m}, xticklabels from table={\gioNamPhut}{group}]
+\addplot[chuoi1, thick, mark=*, mark size=1.5pt] table[x=index, y expr=100*\thisrow{empirical_ewma_cov950}]{\gioNamPhut};
+\addplot[chuoi2, thick, dashed, mark=square*, mark size=1.3pt] table[x=index, y expr=100*\thisrow{normal_mixture_2_cov950}]{\gioNamPhut};
+\addplot[gray!70, thin, domain=-0.6:15.6, samples=2, forget plot] {95};
+\addplot[gray!50, dotted, forget plot] coordinates {(9.5,82) (9.5,100)};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Tỷ lệ bao phủ của khoảng dự báo 95\% theo khối 15 phút, $H=30$. Hỗn hợp chuẩn: 3 thành phần ở 1m, 2 thành phần ở 5m. Đường ngang: mức danh nghĩa 95\%.}
+\label{fig:9a-baophu}
+\end{figure}
+
+Hệ quả thể hiện ở Hình~\ref{fig:9a-baophu}. Tỷ lệ bao phủ 95\% của phân phối thực nghiệm giảm từ 98,7\% (09:00, 1m) xuống 87,2\% (14:00, 1m); ở 5m từ 98,8\% xuống 85,3\%. Tỷ lệ bao phủ tổng thể 94,99\% (1m) và 94,92\% (5m) gần mức danh nghĩa chỉ vì khoảng dự báo buổi sáng quá rộng bù cho buổi chiều quá hẹp. Hai họ phân phối có đường gần như trùng nhau, nghĩa là sai lệch theo giờ đến từ σ chứ không từ lựa chọn $F$.
+
+\subsection{\texorpdfstring{Phụ thuộc chuỗi của $z^2$}{Phụ thuộc chuỗi của z²}}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1, horizontal sep=1.2cm},
+  bieudo, width=0.49\linewidth, height=5.6cm, ymin=-0.02, ymax=0.1, xlabel={Độ trễ (số nến)}]
+\nextgroupplot[title={1m}, ylabel={Tự tương quan của $z^2$}, legend style={at={(0.98,0.98)}, anchor=north east}]
+\addplot[chuoi1, thick, mark=*, mark size=1.2pt] table[x=lag, y=hl30_z2, col sep=comma]{du_lieu/9a_1m_acf.csv};
+\addlegendentry{$z^2$ gốc}
+\addplot[chuoi2, thick, dashed, mark=square*, mark size=1.1pt] table[x=lag, y=hl30_z2_seasonally_adjusted, col sep=comma]{du_lieu/9a_1m_acf.csv};
+\addlegendentry{Sau điều chỉnh mùa vụ}
+\addplot[gray!70, thin, forget plot] table[x=lag, y=hl30_band95, col sep=comma]{du_lieu/9a_1m_acf.csv};
+\addplot[gray!70, thin, forget plot] table[x=lag, y expr=-\thisrow{hl30_band95}, col sep=comma]{du_lieu/9a_1m_acf.csv};
+\nextgroupplot[title={5m}]
+\addplot[chuoi1, thick, mark=*, mark size=1.2pt] table[x=lag, y=hl30_z2, col sep=comma]{du_lieu/9a_5m_acf.csv};
+\addplot[chuoi2, thick, dashed, mark=square*, mark size=1.1pt] table[x=lag, y=hl30_z2_seasonally_adjusted, col sep=comma]{du_lieu/9a_5m_acf.csv};
+\addplot[gray!70, thin, forget plot] table[x=lag, y=hl30_band95, col sep=comma]{du_lieu/9a_5m_acf.csv};
+\addplot[gray!70, thin, forget plot] table[x=lag, y expr=-\thisrow{hl30_band95}, col sep=comma]{du_lieu/9a_5m_acf.csv};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Tự tương quan của $z^2$ trong cùng phiên, $H=30$, trước và sau khi chia $z$ cho căn bậc hai của trung bình $z^2$ theo khối giờ. Đường xám: ngưỡng $\pm1{,}96/\sqrt{n_k}$ theo giả định độc lập.}
+\label{fig:9a-acf}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Thống kê tổng hợp $Q=\sum_k n_k\hat\rho_k^2$ (dạng Box--Pierce, tính trên các cặp trong cùng phiên). Giá trị tới hạn 5\% của $\chi^2$: 43,8 (30 độ trễ, 1m) và 21,0 (12 độ trễ, 5m); các giá trị này chỉ để tham chiếu vì giả định độc lập.}
+\label{tab:9a-q}
+\begin{tabular}{llrrr}
+\toprule
+Khung & σ & $Q$ của $z$ & $Q$ của $z^2$ & $Q$ của $z^2$ sau điều chỉnh mùa vụ \\
+\midrule
+1m & $H=30$ & 344 & 6.632 & 1.389 \\
+1m & $H=60$ & 381 & 14.410 & 3.607 \\
+5m & $H=30$ & 190 & 119 & 7 \\
+5m & $H=60$ & 221 & 416 & 42 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Hình~\ref{fig:9a-acf} và Bảng~\ref{tab:9a-q} cho ba nhận xét:
+\begin{enumerate}[nosep]
+\item Ở 5m với $H=30$, sau điều chỉnh mùa vụ $Q$ giảm từ 119 xuống 7, dưới ngưỡng tham chiếu 21,0. Phụ thuộc chuỗi của $z^2$ ở 5m hầu như chỉ do tính mùa vụ trong phiên.
+\item Ở 1m, điều chỉnh mùa vụ giảm $Q$ khoảng 79\% (6.632 xuống 1.389), nhưng tự tương quan ở độ trễ 1--4 vẫn khoảng 0,03--0,05. Ở khung 1 phút còn các cụm biến động ngắn hạn mà σ $H=30$ chưa theo kịp.
+\item $H=30$ để lại ít phụ thuộc hơn $H=60$ ở mọi chỉ tiêu, phù hợp với kết quả Phase 7A.
+\end{enumerate}
+
+Tự tương quan của chính $z$ nhỏ (trị tuyệt đối không quá khoảng 0,04) nhưng vẫn phát hiện được, nhất là ở 5m (0,032; $-0{,}032$; 0,036 ở độ trễ 1--3). Giả định $\mu=0$ bỏ qua phần phụ thuộc này; ảnh hưởng tới khoảng dự báo được đánh giá là nhỏ nhưng chưa được đo trực tiếp.
+
+\subsection{Cụm vượt khoảng sau một biến động lớn}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Trung bình $z^2$ và tỷ lệ bao phủ 95\% (\%) theo $|z|$ của nến liền trước trong cùng phiên, $H=30$.}
+\label{tab:9a-tre}
+\begin{tabular}{lrrrrrr}
+\toprule
+& \multicolumn{3}{c}{1m} & \multicolumn{3}{c}{5m} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+$|z_{t-1}|$ & Số nến & $\overline{z^2}$ & Bao phủ 95 & Số nến & $\overline{z^2}$ & Bao phủ 95 \\
+\midrule
+Nến đầu phiên hoặc sau khoảng trống & 1.507 & 1,53 & 91,71 & 1.503 & 0,92 & 97,01 \\
+$<1$ & 130.911 & 0,94 & 95,81 & 24.061 & 1,21 & 95,14 \\
+1--2 & 35.994 & 1,27 & 93,55 & 6.392 & 1,44 & 93,74 \\
+2--3 & 6.982 & 1,80 & 90,02 & 1.645 & 1,61 & 93,92 \\
+$\geq3$ & 2.545 & 1,93 & 88,57 & 743 & 1,27 & 96,10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ở 1m, sau một nến có $|z|\geq3$, trung bình $z^2$ của nến kế tiếp là 1,93 và tỷ lệ bao phủ 95\% chỉ 88,6\% (phân phối thực nghiệm). Đây là cụm biến động ngắn hạn trùng với phần tự tương quan còn lại ở mục trước. Ở 5m quan hệ này yếu và không đơn điệu. Theo ngũ phân vị của σ, nhóm σ thấp nhất có $\overline{z^2}$ bằng 1,18 (1m) và 1,70 (5m), tức σ đánh giá thấp biến động khi đang ở mức thấp.
+
+\subsection{Hình dạng đuôi sau khi điều chỉnh mùa vụ}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Thống kê của $z$ ($H=30$) trước và sau khi chia cho căn bậc hai trung bình $z^2$ theo khối giờ.}
+\label{tab:9a-duoi}
+\begin{tabular}{llrrrr}
+\toprule
+Khung & & Độ lệch chuẩn & Độ nhọn vượt chuẩn & Phân vị 99,5\% của $|z|$ & $P(|z|>4)$ \\
+\midrule
+1m & gốc & 1,029 & 4,65 & 3,92 & 0,46\% \\
+1m & sau điều chỉnh & 1,000 & 4,35 & 3,65 & 0,33\% \\
+5m & gốc & 1,124 & 5,34 & 4,45 & 0,76\% \\
+5m & sau điều chỉnh & 1,000 & 5,58 & 3,73 & 0,34\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Điều chỉnh mùa vụ đưa độ lệch chuẩn về 1 và làm phân vị đuôi nhỏ lại, nhưng độ nhọn vượt chuẩn gần như giữ nguyên (Bảng~\ref{tab:9a-duoi}). Như vậy tính mùa vụ trong phiên chủ yếu ảnh hưởng tới \emph{thang đo} của $z$ theo giờ; \emph{dạng đuôi dày} vẫn là đặc tính riêng của $z$. Câu hỏi chọn $F$ vẫn có ý nghĩa, nhưng cần được đặt sau một mô hình σ phản ánh đúng tính mùa vụ.
+
+Một quan sát gợi ý: độ lệch chuẩn hai thành phần của hỗn hợp chuẩn 2 thành phần (trung vị 0,78 và 1,45 ở 1m; 0,70 và 1,58 ở 5m) gần với $\sqrt{\overline{z^2}}$ của đầu phiên sáng (khoảng 0,69 ở 1m, 0,76 ở 5m) và cuối phiên chiều (khoảng 1,42 và 1,67). Hỗn hợp chuẩn có thể đang mô tả một phần sự trộn lẫn các mức biến động trong ngày, chứ không chỉ dạng đuôi.
+
+\phanbien{Quan sát về hỗn hợp chuẩn chỉ dựa trên sự trùng khớp độ lớn, chưa được kiểm định.}
+
+\subsection{Hệ quả cho các bước tiếp theo}
+
+\begin{enumerate}[nosep]
+\item Nguồn sai lệch hiệu chuẩn lớn nhất là tính mùa vụ trong phiên mà σ EWMA không mô tả được. Nó làm tỷ lệ bao phủ 95\% dao động từ khoảng 85\% đến 99\% theo giờ, lớn hơn nhiều mọi khác biệt giữa các họ $F$ ở Phase 6.
+\item \textbf{9D được ưu tiên:} xây σ có điều chỉnh mùa vụ ước lượng chỉ từ dữ liệu quá khứ (ví dụ chia lợi suất cho hệ số mùa vụ theo khối giờ trước khi cập nhật EWMA), rồi so lại các $F$ trên $z$ mới. Nên làm trước 9B.
+\item Ở 1m, sau khi xử lý mùa vụ vẫn còn cụm biến động ngắn hạn; có thể cần σ phản ứng nhanh hơn hoặc mô hình dạng GARCH trong phiên.
+\item 9E và 9F vẫn cần thiết để hiểu độ chính xác của ước lượng $F$ và ảnh hưởng của cách chuẩn hóa thang đo.
+\end{enumerate}
+
+%=====================================================================
 \section{Kết luận tạm thời}
 
 \begin{enumerate}[nosep]
@@ -384,15 +580,16 @@ Ba cơ chế có thể giải thích kết quả:
 \item Mô hình σ, cụ thể là chu kỳ bán rã, ảnh hưởng tới chất lượng khoảng dự báo nhiều hơn lựa chọn họ phân phối.
 \item Tập kiểm thử cuối không xác nhận lợi thế của hỗn hợp chuẩn hiệu chỉnh PIT ở 5m.
 \item Phân phối của $z_t$ gần đối xứng; tham số lệch xấp xỉ 0.
+\item (Phase 9A, khám phá) Phương sai của $z_t$ thay đổi 4--5 lần theo giờ trong phiên vì σ EWMA không mô tả tính mùa vụ; tỷ lệ bao phủ 95\% dao động khoảng 85--99\% theo giờ. Sau điều chỉnh mùa vụ, độ nhọn của $z_t$ hầu như không đổi: đuôi dày là đặc tính thật của $z_t$.
 \end{enumerate}
 
 %=====================================================================
-\section{Kế hoạch Phase 9 (đề xuất, chưa duyệt)}
+\section{Kế hoạch Phase 9}
 
-Mọi kết quả Phase 9 mang tính khám phá. DEC-005 và PHASE8-V1 giữ nguyên.
+Mọi kết quả Phase 9 mang tính khám phá. DEC-005 và PHASE8-V1 giữ nguyên. 9A đã hoàn thành (mục~\ref{sec:9a}); các mục còn lại là đề xuất, chưa duyệt.
 
 \begin{itemize}[nosep]
-\item \textbf{9A:} chẩn đoán $z_t$ trên tập xác thực: hàm tự tương quan của $z$ và $z^2$, $|z|$ theo giờ trong phiên, PIT theo giờ và theo trạng thái biến động.
+\item \textbf{9A (đã xong):} chẩn đoán $z_t$ trên tập xác thực: tự tương quan của $z$ và $z^2$, $z^2$ và tỷ lệ bao phủ theo giờ trong phiên, theo nhóm σ và theo $|z|$ của nến trước.
 \item \textbf{9B:} so sánh chín họ với $H=30$ trên tập xác thực.
 \item \textbf{9C:} bảng mô tả chín họ trên 2025--2026, không chọn lại mô hình.
 \item \textbf{9D:} σ có điều chỉnh mùa vụ trong phiên, nếu 9A cho thấy cần thiết.

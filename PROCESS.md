@@ -218,8 +218,8 @@ Backtest: Out of scope (DEC-006)
 Tests: python -m unittest discover -s tests -v
 Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v2.json; configs/walk_forward_v1.json; configs/selection_v1.json; configs/phase7a_v1.json; configs/phase7b_v1.json; configs/phase8_v1.json
 Checkpoints: BASELINE-V1, DISTRIBUTION-WF-V1, SELECTION-V1, PHASE7A-V1, PHASE7B-V1 and PHASE8-V1 complete
-Experiments: Phase 3/5/6/7A/7B/8 user-run verified; Phase 9 (z_t diagnostics, exploratory) proposed but not approved; Phase 10 not started
-Outputs: outputs/data_v1/, baseline_v1/, distribution_wf_v1/, selection_v1/, phase7a_v1/, phase7b_v1/, phase8_v1/ verified
+Experiments: Phase 3/5/6/7A/7B/8 user-run verified; PHASE9A-V1 (z_t diagnostics, exploratory, AI-run read-only) complete; 9B–9F proposed; Phase 10 not started
+Outputs: outputs/data_v1/, baseline_v1/, distribution_wf_v1/, selection_v1/, phase7a_v1/, phase7b_v1/, phase8_v1/ verified; outputs/phase9a_v1/ (report.json + figure CSVs, copies in Bao_cao/du_lieu/)
 Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
 
@@ -236,7 +236,7 @@ Find the distribution of z_t with the best out-of-sample forecast quality for 1m
 ## Current task
 
 ```text
-Scope narrowed by DEC-006 (2026-09-25): trading research removed from plan; phase table renumbered so Final test = Phase 8 as implemented. Next: user decides on proposed Phase 9 (z_t diagnostics, 9-family comparison at HL30, descriptive 2025–2026 table; all exploratory).
+Phase 9A z_t diagnostics complete (2026-09-25). Next: user decides on 9B–9F; recommended 9D (past-only intraday-seasonal sigma) before 9B.
 ```
 
 ## Current state
@@ -258,7 +258,7 @@ DONE
 Current:
 
 ```text
-DONE — Phase 8 1m/5m user-run artifacts and reports VERIFIED. DEC-006 scope documentation DONE. Phase 9 DISCUSSING; no implementation or new model lock.
+DONE — Phase 8 verified; DEC-006/007 documented; PHASE9A-V1 implemented, tested and run (read-only, development only). 9B–9F DISCUSSING; no new model lock.
 ```
 
 ## Last known working state
@@ -2186,6 +2186,19 @@ Validation: Report recompiled with XeLaTeX without errors or overfull boxes; gre
 Remaining: Same as previous entry — user approval of Phase 9 items.
 ```
 
+## 2026-09-25 — Phase 9A z_t diagnostics (PHASE9A-V1)
+
+```text
+Status: IMPLEMENTED, TESTED and RUN by AI (light, read-only). Exploratory; no model selection.
+Scope: User approved 9A. Development 2022–2024 only; sources Phase 7A HL30 (z + empirical/mixture quantiles) and Phase 5 HL60 (z); every prediction file hash checked against its complete checkpoint; no refit; final-test rows rejected.
+Changes: New src/distributional_bands/phase9a.py, configs/phase9a_v1.json, tests/test_phase9a.py; Bao_cao section 8 with pgfplots figures from Bao_cao/du_lieu/*.csv; research_plan/README/thuat_ngu updated.
+Validation: 54 unittests pass (6 new: within-session pairing, clustered SE, lag labels, synthetic seasonality detect/remove, source hash/final-date guard, write-once + check-only). Real run 10 s (5m) / 22 s (1m); --check-only recomputation matches both reports.
+Findings: E[z^2] rises ~monotonically intraday (1m 0.46→2.04; 5m 0.57→2.80) because continuous EWMA sigma carries previous-afternoon volatility into the open and lags the afternoon ramp; 95% coverage of empirical HL30 ranges 98.7%→87.2% (1m), 98.8%→85.3% (5m) while overall ≈95%; mixture shows same pattern (sigma, not F). z^2 ACF: 5m Q 119→7 after in-sample seasonal adjustment; 1m Q 6632→1389 with residual short-lag clustering (after |z|>=3, next-bar 95% coverage 88.6%). Excess kurtosis nearly unchanged after adjustment (1m 4.65→4.35; 5m 5.34→5.58).
+Experiment ID: PHASE9A-V1.
+Artifacts: outputs/phase9a_v1/<tf>/{report.json,acf.csv,intraday.csv,sigma_groups.csv,lagged_abs_z.csv}.
+Remaining: Discuss 9D (past-only seasonal sigma) as next step; 9B/9C/9E/9F pending approval.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -2257,7 +2270,7 @@ Waiting for user action on: Full Phase 7B .bat run and returned trial artifacts.
 The handoff block above is historical and superseded by this current handoff:
 
 ```text
-Current task: Decide Phase 9 scope under DEC-006 (project = best OOS distribution of z_t; no trading research).
+Current task: Phase 9A done; decide next Phase 9 item (9D recommended) under DEC-006 (project = best OOS distribution of z_t; no trading research).
 Current status: Phase 0–8 done; 3/5/6/7A/7B/8 user-run verified. 5m locked calibrated Mixture 2 underperformed predeclared Empirical HL30 control on final pinball; 1m overall coverage near nominal but exceedances clustered. Development evidence (Phase 5–6): no parametric family clearly beats Empirical EWMA; Phase 7A: sigma half-life matters more than F. No Phase 9 or replacement winner approved.
 Approved scope: 2026-09-25 user approved documentation-only scope update (DEC-006); done. No new fitting/model code.
 Implemented: Updated README.md, docs/research_plan.md, docs/phase8_final_assessment.md, docs/data_contract.md, PROCESS.md; all code/config/artifacts unchanged.
@@ -2310,7 +2323,8 @@ Resume status: Full user-run complete. Preserve outputs/phase8_v1 unchanged.
 [x] Narrow scope to z_t distribution only (DEC-006); remove trading research from plan and renumber phases.
 [x] Add 9E (parameter-recovery and misspecification simulation) and 9F (scale-normalization sensitivity) to the Phase 9 proposal; benchmark fit cost locally.
 [x] Create Bao_cao/bao_cao_ket_qua.tex with official Phase 0–8 results for user review.
-[ ] Approve (or reject) Phase 9 items: 9A z_t diagnostics on development, 9B nine families at HL30, 9C descriptive 2025–2026 nine-family table, 9D seasonal sigma protocol, 9E simulation (pilot R=20 first), 9F scale normalization.
+[x] User approved 9A; PHASE9A-V1 implemented, 6 new tests (54 total) pass, run on 1m/5m, reports re-checked, results added to Bao_cao and research_plan.
+[ ] Approve (or reject) remaining Phase 9 items: 9D seasonal sigma (recommended next), 9B nine families at HL30, 9C descriptive 2025–2026 nine-family table, 9E simulation (pilot R=20 first), 9F scale normalization.
 [ ] Obtain source timezone and contract rollover metadata when available.
 [ ] Phase 10: synthesis report answering the research question, with reproducibility lineage.
 ```
