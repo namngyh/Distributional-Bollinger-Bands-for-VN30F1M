@@ -179,7 +179,7 @@ Implementation chỉ được bắt đầu sau approval.
 ```text
 Name: Distributional Bollinger Bands for VN30F1M
 Purpose:
-Out-of-sample calibration of next-bar distributional bands on 1m and 5m VN30F1M data, followed by separate trading research.
+Identify which distribution of the standardized residual z_t gives the best out-of-sample forecasts of next-bar VN30F1M returns on 1m and 5m data. Pure distributional forecasting research; trading signals/backtests are out of scope (DEC-006).
 Repository:
 https://github.com/namngyh/Distributional-Bollinger-Bands-for-VN30F1M.git (origin/main)
 Primary language:
@@ -214,11 +214,11 @@ CLI: python -m distributional_bands.cli audit|prepare
 Baseline: python -m distributional_bands.baseline --timeframe 1m|5m ...; run_baseline.bat for full development run
 Training: `distributional_bands.distributions.fit_distribution`; completed development walk-forward via `distributional_bands.walk_forward` and `run_distribution_walkforward.bat`
 Analysis: `distributional_bands.selection` via `run_selection.bat`; Phase 7A/7B and frozen Phase 8 via `phase8`, `phase8_report`, `run_phase8.bat` (all user-run verified)
-Backtest: Not implemented
+Backtest: Out of scope (DEC-006)
 Tests: python -m unittest discover -s tests -v
 Configuration: configs/data_v1.json; configs/baseline_v1.json; configs/distribution_fit_v2.json; configs/walk_forward_v1.json; configs/selection_v1.json; configs/phase7a_v1.json; configs/phase7b_v1.json; configs/phase8_v1.json
 Checkpoints: BASELINE-V1, DISTRIBUTION-WF-V1, SELECTION-V1, PHASE7A-V1, PHASE7B-V1 and PHASE8-V1 complete
-Experiments: Phase 3/5/6/7A/7B/8 user-run verified; Phase 9–10 not started
+Experiments: Phase 3/5/6/7A/7B/8 user-run verified; Phase 9 (z_t diagnostics, exploratory) proposed but not approved; Phase 10 not started
 Outputs: outputs/data_v1/, baseline_v1/, distribution_wf_v1/, selection_v1/, phase7a_v1/, phase7b_v1/, phase8_v1/ verified
 Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ```
@@ -230,13 +230,13 @@ Logs: CLI stdout, run_manifest.json, metrics.json after completion
 ## Current objective
 
 ```text
-Build and compare 1m/5m distributional bands, prioritizing out-of-sample forecast quality.
+Find the distribution of z_t with the best out-of-sample forecast quality for 1m/5m VN30F1M returns. No trading research (DEC-006).
 ```
 
 ## Current task
 
 ```text
-Phase 8 final test complete and verified. Record the locked-model result, including the negative 5m comparison, and discuss the next research scope without final-set retuning.
+Scope narrowed by DEC-006 (2026-09-25): trading research removed from plan; phase table renumbered so Final test = Phase 8 as implemented. Next: user decides on proposed Phase 9 (z_t diagnostics, 9-family comparison at HL30, descriptive 2025–2026 table; all exploratory).
 ```
 
 ## Current state
@@ -258,7 +258,7 @@ DONE
 Current:
 
 ```text
-DONE — Phase 8 1m/5m user-run artifacts and reports VERIFIED. Next research phase remains DISCUSSING; no Phase 9 implementation or new model lock.
+DONE — Phase 8 1m/5m user-run artifacts and reports VERIFIED. DEC-006 scope documentation DONE. Phase 9 DISCUSSING; no implementation or new model lock.
 ```
 
 ## Last known working state
@@ -274,7 +274,7 @@ Date: 2026-09-23
 ## Current modifications
 
 ```text
-Documentation-only final assessment in docs/phase8_final_assessment.md and status updates. Phase 3–8 code/config/checkpoints/predictions/reports untouched.
+2026-09-25: documentation-only scope update (DEC-006) in README.md, docs/research_plan.md, docs/phase8_final_assessment.md, docs/data_contract.md, PROCESS.md. Phase 3–8 code/config/checkpoints/predictions/reports untouched.
 ```
 
 ## Blockers
@@ -1908,6 +1908,34 @@ Revisit conditions: Verified source metadata contradicts data contract, integrit
 Status: ACTIVE
 ```
 
+## DEC-006 — Scope limited to the distribution of z_t; trading research removed
+
+```text
+Date: 2026-09-25
+Decision: User stated the project goal is solely to find which probability distribution of the standardized residual z_t gives the best out-of-sample forecasts of returns. Trading signals, backtests, transaction costs and entry/exit rules are out of scope. The planned "8. Trading research" row was removed from the phase table (never implemented), so phase numbers now match the implemented names (8 = Final test, 9 = z_t diagnostics/extended comparison, 10 = synthesis/reproducibility).
+Reason: Research question is purely distributional forecasting quality.
+Alternatives considered: Keep trading research as a later optional phase.
+Trade-offs: None for completed work; Phase 0–8 were all distributional and remain valid. Phase 7B (PIT-calibrated hybrid) and Phase 8 (two locked models only) are reframed as ablation and narrow final test respectively, not as the answer to "which family".
+Affected modules: Documentation only (README.md, docs/research_plan.md, docs/phase8_final_assessment.md, docs/data_contract.md, PROCESS.md). No code, config, checkpoint or output changed.
+Checkpoint compatibility: Unaffected; no hashed artifact references these documents.
+Revisit conditions: User explicitly re-opens trading research.
+Status: ACTIVE
+```
+
+## DEC-007 — Statistical Vietnamese terminology in human-facing documents
+
+```text
+Date: 2026-09-25
+Decision: User found terms such as "pinball" and "DGP" hard to follow. Human-facing documents (README.md, docs/*.md, Bao_cao/*.tex) use standard statistical Vietnamese terms defined in docs/thuat_ngu.md, e.g. pinball loss -> "tổn thất phân vị", coverage -> "tỷ lệ bao phủ", band -> "khoảng dự báo", DGP -> "phân phối sinh mẫu", development -> "tập xác thực", final test -> "tập kiểm thử cuối", walk-forward -> "đánh giá cửa sổ trượt", Empirical EWMA -> "phân phối thực nghiệm".
+Reason: The research audience reads from a statistics background.
+Alternatives considered: Rename code identifiers/JSON keys too.
+Trade-offs: Code, configs, JSON keys, file names, experiment IDs and this operating log stay in their original English names because checkpoints/reports are hash-bound; docs/thuat_ngu.md maps each term to its code name.
+Affected modules: Documentation only.
+Checkpoint compatibility: Unaffected.
+Revisit conditions: User requests different wording.
+Status: ACTIVE
+```
+
 Template:
 
 ## DEC-XXX — Title
@@ -2127,6 +2155,37 @@ Artifacts: Both final reports and checkpoints verified; exact SHA-256 values in 
 Remaining: Discuss whether to prioritize source metadata audit, conditional-calibration failure analysis (exploratory only), or a separately scoped Phase 9. Do not select a new 5m winner on this final period.
 ```
 
+## 2026-09-25 — Scope narrowed to z_t distribution (DEC-006)
+
+```text
+Status: DOCUMENTED. No Phase 9 implementation approved.
+Changes: Recorded DEC-006. Removed trading research from the phase table and README; renumbered phases so Final test = Phase 8 (as implemented). Added per-phase contribution to the research question and a proposed, unapproved Phase 9 (9A z_t diagnostics on development, 9B nine families at HL30, 9C descriptive nine-family table on 2025–2026, 9D seasonal-sigma protocol if warranted), all exploratory.
+Files changed: README.md, docs/research_plan.md, docs/phase8_final_assessment.md, docs/data_contract.md, PROCESS.md.
+Validation: Documentation review only; grep confirms no source/config/.bat references or hashes these documents. No experiment run.
+Experiment ID: None.
+Remaining: User chooses which Phase 9 items (if any) to approve; source timezone/rollover still open.
+```
+
+## 2026-09-25 — Phase 9E/9F proposal and official results report
+
+```text
+Status: DOCUMENTED; no Phase 9 implementation approved.
+Changes: Added 9E (2 timeframes × 10 DGPs × R=200; 4,000 datasets, 36,000 parametric fits + empirical; optional 9E-c real-window bootstrap 600 datasets) and 9F (scale-normalization sensitivity) to docs/research_plan.md. Created Bao_cao/bao_cao_ket_qua.tex summarizing verified Phase 0–8 results from existing reports.
+Findings recorded: No parameter-recovery simulation existed; tests only check numerical cdf/ppf/moment/convergence correctness. Parametric laws are normalized to variance 1 by their own theoretical moments while realized OOS z std is 1.018 (1m) / 1.076 (5m); Student-t df median 3.96 (1m) / 3.26 (5m), 28% of 5m fits df<3. Mixture 3 failed (weight floor) on a synthetic Student-t sample of n=2,753 in benchmark.
+Validation: Local benchmark only (fit_distribution on synthetic t and mixture samples, n=2,753/14,271): ~5.5 s and ~23.7 s per dataset for all nine families, GH ~75–80%. Numbers in report extracted read-only from outputs/*/report.json; no official artifact modified.
+Experiment ID: None (9E proposed as PHASE9E-V1).
+Remaining: User reviews report and approves Phase 9 items; 9E should start with pilot R=20.
+```
+
+## 2026-09-25 — Statistical terminology pass (DEC-007)
+
+```text
+Status: DOCUMENTED.
+Changes: Added docs/thuat_ngu.md (statistical Vietnamese glossary mapped to code names). Rewrote README.md, docs/research_plan.md, docs/phase8_final_assessment.md, Bao_cao/bao_cao_ket_qua.tex and edited docs/data_contract.md to use those terms. All numbers, decisions and hashes unchanged.
+Validation: Report recompiled with XeLaTeX without errors or overfull boxes; grep shows no remaining "pinball"/"DGP"/"winner"/"shortlist" in human-facing prose (code identifiers excepted).
+Remaining: Same as previous entry — user approval of Phase 9 items.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -2198,13 +2257,13 @@ Waiting for user action on: Full Phase 7B .bat run and returned trial artifacts.
 The handoff block above is historical and superseded by this current handoff:
 
 ```text
-Current task: Discuss next research scope after recording the one-shot Phase 8 final result.
-Current status: Phase 3/5/6/7A/7B/8 user-run verified; Phase 8 final assessment recorded. 5m locked calibrated Mixture 2 underperformed predeclared Empirical HL30 control on final pinball; 1m overall coverage near nominal but exceedances clustered. No Phase 9 or replacement winner approved.
-Approved scope: User asked to record the Phase 8 conclusion and discuss issues next; documentation only, no new fitting/model/trading code.
-Implemented: docs/phase8_final_assessment.md and current status/registry updates; all prior code/config/artifacts unchanged.
-Validation: run_phase8.bat check passed 381/381 each and both phase8_report --check-only passed; exact artifact hashes in final assessment.
+Current task: Decide Phase 9 scope under DEC-006 (project = best OOS distribution of z_t; no trading research).
+Current status: Phase 0–8 done; 3/5/6/7A/7B/8 user-run verified. 5m locked calibrated Mixture 2 underperformed predeclared Empirical HL30 control on final pinball; 1m overall coverage near nominal but exceedances clustered. Development evidence (Phase 5–6): no parametric family clearly beats Empirical EWMA; Phase 7A: sigma half-life matters more than F. No Phase 9 or replacement winner approved.
+Approved scope: 2026-09-25 user approved documentation-only scope update (DEC-006); done. No new fitting/model code.
+Implemented: Updated README.md, docs/research_plan.md, docs/phase8_final_assessment.md, docs/data_contract.md, PROCESS.md; all code/config/artifacts unchanged.
+Validation: Phase 8 integrity previously verified (run_phase8.bat check 381/381; phase8_report --check-only both). Scope update is docs-only.
 Experiment: PHASE8-V1 complete; DEC-005 remains the historical pre-final model lock, not a statement that 5m passed final.
-Next: Discuss source timezone/contract rollover, conditional calibration and 5m generalization; decide any new Phase 9 scope before coding. Any post-final model research is exploratory until verified on genuinely later data.
+Next: User picks among proposed Phase 9 items (9A z_t diagnostics on development recommended first; 9B nine families at HL30; 9C descriptive 2025–2026 nine-family table; 9D seasonal sigma only if 9A warrants; 9E recovery/misspecification simulation, pilot R=20 first; 9F scale-normalization sensitivity). Official Phase 0–8 results are summarized in Bao_cao/bao_cao_ket_qua.tex for user review. All post-final results exploratory until verified on data after 2026-07-17.
 Do NOT: Retune on 2025–2026 and call the same period independent final, overwrite Phase 8 outputs or silently promote the 5m Empirical control to a new locked winner.
 ```
 
@@ -2248,7 +2307,12 @@ Resume status: Full user-run complete. Preserve outputs/phase8_v1 unchanged.
 [x] Prepare Phase 8 frozen runner, checkpointed .bat, report and synthetic tests; read-only preflight 0/381 each.
 [x] User ran run_phase8.bat; 381/381 checkpoints and both final reports verified.
 [x] Record Phase 8 result, including negative 5m model-vs-control outcome, without changing the model lock.
-[ ] Discuss source metadata, conditional calibration and next research objective; approve any new Phase 9 scope separately.
+[x] Narrow scope to z_t distribution only (DEC-006); remove trading research from plan and renumber phases.
+[x] Add 9E (parameter-recovery and misspecification simulation) and 9F (scale-normalization sensitivity) to the Phase 9 proposal; benchmark fit cost locally.
+[x] Create Bao_cao/bao_cao_ket_qua.tex with official Phase 0–8 results for user review.
+[ ] Approve (or reject) Phase 9 items: 9A z_t diagnostics on development, 9B nine families at HL30, 9C descriptive 2025–2026 nine-family table, 9D seasonal sigma protocol, 9E simulation (pilot R=20 first), 9F scale normalization.
+[ ] Obtain source timezone and contract rollover metadata when available.
+[ ] Phase 10: synthesis report answering the research question, with reproducibility lineage.
 ```
 
 Danh sách này không phải authorization để code.

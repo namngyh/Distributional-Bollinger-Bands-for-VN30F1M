@@ -1,0 +1,457 @@
+% Báo cáo kết quả chính thức — Distributional Bollinger Bands for VN30F1M
+% Biên dịch: xelatex bao_cao_ket_qua.tex (chạy 2 lần để cập nhật mục lục)
+% Mọi số liệu được trích từ outputs/*/report.json đã xác minh; không có số liệu ước đoán.
+% Thuật ngữ theo docs/thuat_ngu.md (DEC-007).
+% Dùng \phanbien{...} để ghi ý kiến phản biện ngay trong văn bản.
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{caption}
+
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+\setlength{\tabcolsep}{4pt}
+\captionsetup{labelsep=period,font=small}
+\renewcommand{\tablename}{Bảng}
+\renewcommand{\contentsname}{Mục lục}
+\renewcommand{\refname}{Tài liệu tham khảo}
+
+\newcommand{\phanbien}[1]{\par\noindent\colorbox{orange!15}{\parbox{\dimexpr\linewidth-2\fboxsep}{\small\textbf{Phản biện:} #1}}\par}
+\newcommand{\ghichu}[1]{\par\noindent\colorbox{blue!8}{\parbox{\dimexpr\linewidth-2\fboxsep}{\small\textbf{Ghi chú:} #1}}\par}
+
+\title{\textbf{Dải Bollinger theo phân phối cho VN30F1M}\\[0.3em]
+\large Báo cáo kết quả chính thức Phase 0--8 và kế hoạch Phase 9}
+\author{}
+\date{Cập nhật: 25/09/2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%=====================================================================
+\section{Câu hỏi nghiên cứu và phạm vi}
+
+Nghiên cứu trả lời câu hỏi:
+
+\begin{quote}
+\textit{Phân phối xác suất nào của phần dư chuẩn hóa $z_t$ cho dự báo ngoài mẫu tốt nhất đối với lợi suất VN30F1M ở khung 1 phút và 5 phút?}
+\end{quote}
+
+Đây là nghiên cứu thuần về dự báo phân phối. Tín hiệu giao dịch, backtest và chi phí giao dịch nằm ngoài phạm vi (quyết định DEC-006, 25/09/2026). Dải giá chỉ là cách trình bày các khoảng dự báo.
+
+Tiêu chí chính là chất lượng dự báo ngoài mẫu, tức dự báo cho dữ liệu nằm sau thời điểm ước lượng. Log-likelihood, AIC và BIC trong mẫu chỉ dùng để chẩn đoán quá trình ước lượng.
+
+\subsection{Quy ước thuật ngữ}
+
+Báo cáo dùng các thuật ngữ thống kê sau; bảng đầy đủ ở \texttt{docs/thuat\_ngu.md}.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+Thuật ngữ & Ý nghĩa \\
+\midrule
+Phần dư chuẩn hóa $z_t$ & $z_t=r_t/\sigma_t$, lợi suất chia cho độ biến động có điều kiện \\
+Phân phối thực nghiệm & Phân vị mẫu của $z$ trong 60 phiên trước; không giả định dạng phân phối \\
+Khoảng dự báo mức $c$ & Khoảng giữa hai phân vị $(1-c)/2$ và $(1+c)/2$; quy ra giá là dải Bollinger theo phân phối \\
+Tỷ lệ bao phủ & Tần suất lợi suất thực tế rơi vào khoảng dự báo; lý tưởng bằng $c$ \\
+Tổn thất phân vị & Hàm tổn thất của hồi quy phân vị; kỳ vọng nhỏ nhất khi dự báo đúng bằng phân vị thật \\
+PIT & $u=F(z)$; nếu $F$ đúng thì $u$ có phân phối đều trên $[0,1]$ \\
+Tập xác thực & 2022--2024, dùng để so sánh và chọn mô hình \\
+Tập kiểm thử cuối & 2025--17/07/2026, chỉ dùng một lần sau khi đã chọn mô hình \\
+Đánh giá cửa sổ trượt & Ước lượng trên 60 phiên gần nhất, dự báo 5 phiên kế tiếp rồi trượt cửa sổ \\
+Mang tính khám phá & Kết quả gợi ý giả thuyết, không đủ để khẳng định \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+%=====================================================================
+\section{Dữ liệu và thiết kế thời gian}
+
+\subsection{Dữ liệu}
+
+Nguồn là file \texttt{ohlc\_export.csv}, mã liên tục VN30F1M, từ 06/11/2017 đến 17/07/2026, gồm 525.635 dòng và 2.171 ngày giao dịch (chính sách dữ liệu DATA-V1). Mẫu chỉ giữ hai phiên liên tục: sáng 09:00--11:29 và chiều 13:00--14:29. Các nến 08:59, 11:30, 14:30, 14:45 bị loại.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Quy mô mẫu DATA-V1.}
+\begin{tabular}{lr}
+\toprule
+Chỉ tiêu & Giá trị \\
+\midrule
+Nến 1 phút liên tục & 519.750 \\
+Nến 5 phút đầy đủ (đủ 5 nến 1 phút) & 103.499 \\
+Quan sát có lợi suất kỳ sau hợp lệ, 1m & 514.570 \\
+Quan sát có lợi suất kỳ sau hợp lệ, 5m & 98.981 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Biến cần dự báo là lợi suất logarit của nến kế tiếp, $r_{t+1}=\log(C_{t+1}/C_t)$. Lợi suất này không nối qua nghỉ trưa, ATC, qua đêm hoặc qua khoảng trống mất phút. Không cắt bớt giá trị cực trị (winsorize) và không thay thế giá trị ngoại lai. Mốc thời gian là đầu nến (người dùng xác nhận).
+
+\ghichu{Múi giờ nguồn và quy tắc đáo hạn hợp đồng chưa được xác minh. Điều này ảnh hưởng tới diễn giải các sự kiện ở đuôi phân phối và tính mùa vụ trong phiên.}
+
+\subsection{Chia giai đoạn}
+
+\begin{itemize}[nosep]
+\item \textbf{Giai đoạn khởi động:} 2017--2021, chỉ để cập nhật σ và tạo lịch sử phần dư.
+\item \textbf{Tập xác thực:} 04/01/2022--31/12/2024, 748 phiên.
+\item \textbf{Tập kiểm thử cuối:} 02/01/2025--17/07/2026, 381 phiên.
+\end{itemize}
+
+Tập kiểm thử cuối đã được dùng một lần ở Phase 8. Mọi phân tích sau đó trên giai đoạn này chỉ mang tính khám phá.
+
+%=====================================================================
+\section{Phương pháp}
+
+\subsection{Mô hình}
+
+Tại thời điểm nến $t$ kết thúc, lợi suất kỳ sau được mô hình hóa là
+\begin{equation}
+r_{t+1} = \mu_{t+1\mid t} + \sigma_{t+1\mid t}\, z_{t+1}, \qquad \mu = 0,\quad \mathbb{E}z=0,\ \operatorname{Var}z = 1 .
+\end{equation}
+
+Độ biến động có điều kiện được ước lượng bằng trung bình trượt lũy thừa (EWMA):
+\begin{equation}
+\sigma^2_t = \lambda\,\sigma^2_{t-1} + (1-\lambda)\, r^2_{t-1}, \qquad \lambda = 2^{-\Delta/H},
+\end{equation}
+với $\Delta$ là độ dài nến (1 hoặc 5 phút) và $H$ là chu kỳ bán rã, tức số phút giao dịch để trọng số giảm còn một nửa. Giá trị $H=60$ được dùng ở Phase 3--6, còn $H=30$ ở Phase 7--8. $\sigma^2$ khởi tạo bằng trung bình $r^2$ của 240 phút đầu. $\sigma_t$ chỉ dùng lợi suất của các nến trước $t$.
+
+Phần dư chuẩn hóa là $z_t = r_t/\sigma_t$. Phân vị dự báo ở mức xác suất $p$ là $q_t(p) = \sigma_t\,F^{-1}(p)$, trong đó $F$ là phân phối của $z$. Dải giá là $C_t e^{q_t(p)}$. Năm khoảng dự báo trung tâm được xét là 90\%, 95\%, 97,5\%, 99\% và 99,5\%. Ví dụ, khoảng 95\% dùng $p=0{,}025$ và $p=0{,}975$.
+
+\subsection{\texorpdfstring{Các ứng viên cho $F$}{Các ứng viên cho F}}
+
+\begin{itemize}[nosep]
+\item \textbf{Mô hình tham chiếu:} Chuẩn với σ EWMA; Chuẩn với σ cửa sổ cố định 240 phút (tương tự Bollinger truyền thống); phân phối thực nghiệm với σ EWMA.
+\item \textbf{Chín họ tham số:} Chuẩn, Student-t, phân phối sai số tổng quát (GED), Student-t lệch, GED lệch (dạng hai nửa), Normal Inverse Gaussian (NIG), Hyperbolic tổng quát (GH), hỗn hợp chuẩn 2 và 3 thành phần.
+\end{itemize}
+
+\textbf{Phân phối thực nghiệm} dùng phân vị mẫu của toàn bộ $z$ trong 60 phiên trước ngày dự báo (tối thiểu 20 phiên). Mọi quan sát có trọng số bằng nhau; trọng số giảm dần chỉ nằm trong $\sigma$. Phân vị được cập nhật mỗi phiên.
+
+\subsection{Ước lượng tham số}
+
+\begin{itemize}[nosep]
+\item Chuẩn: ước lượng hợp lý cực đại (MLE) dạng đóng.
+\item Student-t, GED, Student-t lệch, GED lệch, NIG, GH: MLE bằng tối ưu số có ràng buộc (L-BFGS-B), 3 điểm khởi tạo, tối đa 150 vòng lặp; chọn nghiệm có log-likelihood cao nhất.
+\item Hỗn hợp chuẩn 2 và 3 thành phần: thuật toán EM, 5 điểm khởi tạo theo seed cố định, ngưỡng hội tụ $10^{-5}$, chặn dưới phương sai $10^{-4}$ và chặn dưới trọng số $0{,}01$.
+\end{itemize}
+
+Sau khi ước lượng, phân phối được biến đổi tuyến tính về kỳ vọng 0, phương sai 1 bằng \emph{mô-men lý thuyết của chính nó}: $F^{-1}_{\text{chuẩn hóa}}(p) = \bigl(F^{-1}_{\text{gốc}}(p)-m\bigr)/s$, với $m$ và $s^2$ là kỳ vọng và phương sai lý thuyết của phân phối gốc. Ước lượng thất bại được ghi lại; không thay thế ngầm bằng phân phối chuẩn.
+
+\subsection{Đánh giá cửa sổ trượt}
+
+Mỗi lần ước lượng dùng $z$ của 60 phiên trước ngày dự báo (khoảng 14.270 quan sát ở 1m, khoảng 2.750 ở 5m). Tham số được giữ cố định trong 5 phiên rồi ước lượng lại. Trên 748 phiên của tập xác thực, mỗi họ được ước lượng 150 lần cho mỗi khung, tổng cộng 1.350 lần mỗi khung. Mọi dự báo đều ngoài mẫu.
+
+\subsection{Tiêu chí đánh giá}
+
+\textbf{Tiêu chí chính.} Hàm tổn thất phân vị (hàm tổn thất của hồi quy phân vị) là $\rho_\tau(u)=u\,(\tau-\mathbf 1\{u<0\})$. Kỳ vọng $\mathbb E\,\rho_\tau(Y-q)$ đạt nhỏ nhất khi $q$ bằng phân vị $\tau$ thật của $Y$, nên hàm này phù hợp để so sánh các dự báo phân vị. Với khoảng mức $c$, đặt $\alpha=(1-c)/2$. Tổn thất của một nến là
+\begin{equation}
+S_t = \frac{1}{5}\sum_{c}\frac{\rho_{\alpha}(r_{t+1}-q^{\text{dưới}}_t)+\rho_{1-\alpha}(r_{t+1}-q^{\text{trên}}_t)}{2},
+\end{equation}
+và tiêu chí chính là \textbf{tổn thất phân vị trung bình}, tức trung bình $S_t$ trên cùng tập nến cho mọi mô hình (so sánh ghép cặp). Nhỏ hơn là tốt hơn. Chênh lệch tương đối $\Delta=(L_\text{mô hình}/L_\text{tham chiếu}-1)\times100\%$; $\Delta$ âm nghĩa là tốt hơn tham chiếu.
+
+\textbf{Chẩn đoán.} Gồm tỷ lệ bao phủ và tỷ lệ vượt khoảng từng phía; kiểm định độc lập Markov của chuỗi vượt khoảng trong cùng phiên (kiểm định tỷ số hợp lý, thống kê có phân phối $\chi^2(1)$); histogram PIT; độ ổn định theo năm.
+
+\textbf{Suy luận.} Bootstrap khối vòng theo ngày giao dịch (khối 5 phiên, 2.000 lần lặp) cho chênh lệch tổn thất so với mô hình tham chiếu. Giá trị p hai phía được hiệu chỉnh Holm cho kiểm định bội.
+
+%=====================================================================
+\section{Kết quả trên tập xác thực: so sánh chín họ (Phase 5--6)}
+
+Chín họ được so trên cùng $z$ (σ EWMA, $H=60$) và cùng tập nến, trong 748 phiên. Không lần ước lượng nào thất bại. Trong Bảng~\ref{tab:p6-1m} và~\ref{tab:p6-5m}, tham chiếu là phân phối thực nghiệm. Họ Chuẩn cho kết quả trùng hoàn toàn với mô hình tham chiếu Chuẩn với σ EWMA; đây là một kiểm tra chéo.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Tập xác thực, 1m, 177.939 nến, $H=60$. Tỷ lệ bao phủ tính bằng \%.}
+\label{tab:p6-1m}
+\begin{tabular}{lrrrrrr}
+\toprule
+Mô hình & Tổn thất ($\times10^{-5}$) & $\Delta$ & Bao phủ 90 & Bao phủ 95 & Bao phủ 99,5 & $p$ Holm \\
+\midrule
+GH & 3,0851 & $-0{,}057\%$ & 89,62 & 94,76 & 99,44 & 0,145 \\
+NIG & 3,0853 & $-0{,}048\%$ & 90,30 & 95,12 & 99,38 & 0,216 \\
+Hỗn hợp 3 thành phần & 3,0855 & $-0{,}045\%$ & 89,60 & 94,91 & 99,48 & 0,007 \\
+Hỗn hợp 2 thành phần & 3,0865 & $-0{,}011\%$ & 89,43 & 95,17 & 99,43 & 0,565 \\
+\textbf{Phân phối thực nghiệm} & 3,0868 & 0 & 89,97 & 95,01 & 99,48 & -- \\
+Student-t lệch & 3,0893 & $+0{,}079\%$ & 88,98 & 94,36 & 99,46 & 0,324 \\
+Student-t & 3,0893 & $+0{,}079\%$ & 88,97 & 94,37 & 99,46 & 0,324 \\
+GED & 3,0899 & $+0{,}100\%$ & 90,97 & 95,39 & 99,26 & 0,012 \\
+GED lệch & 3,0905 & $+0{,}120\%$ & 90,97 & 95,38 & 99,26 & 0,004 \\
+Chuẩn (σ EWMA) & 3,1591 & $+2{,}340\%$ & 91,11 & 94,40 & 98,11 & 0,004 \\
+Chuẩn (σ cửa sổ cố định) & 3,2659 & $+5{,}800\%$ & 91,19 & 94,33 & 97,97 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Tập xác thực, 5m, 34.344 nến, $H=60$.}
+\label{tab:p6-5m}
+\begin{tabular}{lrrrrrr}
+\toprule
+Mô hình & Tổn thất ($\times10^{-5}$) & $\Delta$ & Bao phủ 90 & Bao phủ 95 & Bao phủ 99,5 & $p$ Holm \\
+\midrule
+Hỗn hợp 3 thành phần & 7,0258 & $-0{,}293\%$ & 88,50 & 94,11 & 99,31 & 0,005 \\
+Hỗn hợp 2 thành phần & 7,0265 & $-0{,}282\%$ & 88,50 & 94,68 & 99,26 & 0,004 \\
+NIG & 7,0295 & $-0{,}239\%$ & 88,63 & 93,95 & 99,35 & 0,064 \\
+GH & 7,0314 & $-0{,}212\%$ & 88,25 & 93,83 & 99,38 & 0,115 \\
+GED & 7,0326 & $-0{,}196\%$ & 89,65 & 94,30 & 99,11 & 0,216 \\
+GED lệch & 7,0344 & $-0{,}170\%$ & 89,65 & 94,31 & 99,11 & 0,216 \\
+\textbf{Phân phối thực nghiệm} & 7,0464 & 0 & 89,93 & 94,92 & 99,43 & -- \\
+Student-t & 7,1166 & $+0{,}996\%$ & 85,85 & 92,44 & 99,45 & 0,004 \\
+Student-t lệch & 7,1210 & $+1{,}059\%$ & 85,88 & 92,41 & 99,46 & 0,004 \\
+Chuẩn (σ EWMA) & 7,2821 & $+3{,}345\%$ & 89,84 & 93,17 & 97,48 & 0,004 \\
+Chuẩn (σ cửa sổ cố định) & 7,3225 & $+3{,}918\%$ & 90,30 & 93,70 & 97,57 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Tham số ước lượng}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Trung vị và khoảng [nhỏ nhất; lớn nhất] của tham số qua 150 lần ước lượng.}
+\begin{tabular}{lll}
+\toprule
+Tham số & 1m & 5m \\
+\midrule
+Student-t: bậc tự do & 3,96 [2,92; 6,56] & 3,26 [2,46; 5,26] \\
+GED: $\beta$ & 1,08 [0,81; 1,40] & 1,01 [0,86; 1,30] \\
+Student-t lệch: tham số lệch & 0,002 [$-0{,}03$; 0,03] & 0,009 [$-0{,}06$; 0,08] \\
+NIG: $a$ / $b$ & 0,88 / 0,001 & 0,61 / 0,003 \\
+GH: $p$ / $a$ & $-1{,}64$ / 0,44 & $-0{,}86$ / 0,50 \\
+Hỗn hợp 2 thành phần: $\sigma_1$ / $\sigma_2$ & 0,78 / 1,45 & 0,70 / 1,58 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ở 1m, GH chạm biên dưới $a=0{,}1$ trong 7/150 lần ước lượng. Ở 5m, 28\% số lần ước lượng Student-t có bậc tự do nhỏ hơn 3. Tham số lệch xấp xỉ 0 ở mọi họ. Trọng số của hỗn hợp chuẩn thay đổi rộng (0,14--0,85) do hoán đổi nhãn thành phần, nên không diễn giải riêng từng tham số của hỗn hợp chuẩn. GED với $\beta\approx1$ gần với phân phối Laplace.
+
+\subsection{Nhận xét}
+
+\begin{enumerate}[nosep]
+\item Phân phối chuẩn kém rõ rệt (+2,3\% ở 1m, +3,3\% ở 5m) và thiếu bao phủ ở đuôi. Dữ liệu cho thấy $z$ có đuôi dày.
+\item Nhóm đứng đầu (GH, NIG, hỗn hợp chuẩn) chỉ tốt hơn phân phối thực nghiệm 0,05\% ở 1m và 0,2--0,3\% ở 5m. Ở 1m, chỉ hỗn hợp 3 thành phần có ý nghĩa thống kê sau hiệu chỉnh Holm. Các mô hình này thường có tỷ lệ bao phủ thấp hơn mức danh nghĩa ở khoảng 90--95\%.
+\item Student-t kém ở 5m (+1\%; bao phủ 95\% chỉ đạt 92,4\%). Tham số lệch hầu như không cải thiện kết quả.
+\item Ở mọi mô hình, kiểm định độc lập của chuỗi vượt khoảng có giá trị p rất nhỏ. Các lần vượt khoảng tụ cụm.
+\end{enumerate}
+
+%=====================================================================
+\section{Chu kỳ bán rã và hiệu chỉnh PIT (Phase 7)}
+
+\subsection{Phase 7A: độ nhạy theo chu kỳ bán rã của σ}
+
+Danh sách ứng viên rút gọn gồm phân phối thực nghiệm, hỗn hợp 3 thành phần (1m) và hỗn hợp 2 thành phần (5m); lưới chu kỳ bán rã là 30/60/120 phút. Xếp hạng trên 2022--2023; năm 2024 chỉ là kiểm tra ổn định hồi cứu, vì danh sách rút gọn đã được chọn khi nhìn toàn bộ 2022--2024.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Phase 7A, giai đoạn xếp hạng 2022--2023. $\Delta$ so với phân phối thực nghiệm, $H=60$.}
+\begin{tabular}{lrrrr}
+\toprule
+& \multicolumn{2}{c}{1m (118.457 nến)} & \multicolumn{2}{c}{5m (22.862 nến)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Cấu hình & $\Delta$ tổn thất & Bao phủ 95 & $\Delta$ tổn thất & Bao phủ 95 \\
+\midrule
+Thực nghiệm, $H=30$ & $-2{,}955\%$ & 94,99 & $-0{,}505\%$ & 94,91 \\
+Hỗn hợp chuẩn, $H=30$ & $-2{,}980\%$ & 94,76 & $-0{,}797\%$ & 93,89 \\
+Thực nghiệm, $H=60$ & 0 & 95,01 & 0 & 94,90 \\
+Hỗn hợp chuẩn, $H=60$ & $-0{,}047\%$ & 94,90 & $-0{,}280\%$ & 94,68 \\
+Thực nghiệm, $H=120$ & $+2{,}265\%$ & 95,00 & $+0{,}704\%$ & 94,92 \\
+Hỗn hợp chuẩn, $H=120$ & $+2{,}177\%$ & 94,99 & $+0{,}442\%$ & 95,10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Kết quả thực nghiệm cho thấy thay đổi chu kỳ bán rã làm tổn thất thay đổi khoảng 3\% ở 1m, trong khi thay đổi họ phân phối ở cùng chu kỳ bán rã chỉ làm thay đổi dưới 0,05\%. Ở 1m, mô hình σ quan trọng hơn lựa chọn $F$. Tuy vậy, trên toàn tập xác thực, hỗn hợp chuẩn với $H=30$ ở 5m chỉ đạt tỷ lệ bao phủ 93,96\% ở khoảng 95\% và 99,07\% ở khoảng 99,5\%.
+
+\subsection{Phase 7B: hiệu chỉnh xác suất bằng PIT quá khứ (thí nghiệm bổ sung)}
+
+Giá trị PIT $u=F_t(z)$ của các ngày trước được dùng để ước lượng hàm phân vị $\hat H^{-1}$ của PIT. Phân vị đã hiệu chỉnh là $F_d^{-1}\bigl(\hat H_{d-1}^{-1}(p)\bigr)$. Nếu $F$ đúng thì $\hat H$ xấp xỉ phân phối đều và phép hiệu chỉnh gần như không thay đổi gì. 60 phiên đầu dùng làm giai đoạn khởi động; 688 phiên còn lại được chấm điểm.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Phase 7B, giai đoạn xếp hạng 2022--2023, $H=30$. $\Delta$ so với phân phối thực nghiệm, $H=30$.}
+\begin{tabular}{lrrrr}
+\toprule
+& \multicolumn{2}{c}{1m (104.201 nến)} & \multicolumn{2}{c}{5m (20.111 nến)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Mô hình & $\Delta$ tổn thất & Bao phủ 95 & $\Delta$ tổn thất & Bao phủ 95 \\
+\midrule
+Thực nghiệm & 0 & 94,97 & 0 & 94,87 \\
+Hỗn hợp chuẩn gốc & $-0{,}023\%$ ($p_\text{Holm}=0{,}51$) & 94,76 & $-0{,}267\%$ ($p_\text{Holm}=0{,}070$) & 93,83 \\
+Hỗn hợp chuẩn hiệu chỉnh & $+0{,}003\%$ ($p_\text{Holm}=0{,}84$) & 95,01 & $-0{,}131\%$ ($p_\text{Holm}=0{,}023$) & 94,93 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Sau hiệu chỉnh, mô hình là dạng lai giữa hỗn hợp chuẩn và một ánh xạ thực nghiệm, không còn là một họ phân phối thuần. Vì vậy Phase 7B là chẩn đoán tính hiệu chuẩn ở đuôi, không trả lời trực tiếp câu hỏi ``họ nào''.
+
+\subsection{Quyết định chọn mô hình DEC-005}
+
+Trước khi mở tập kiểm thử cuối: 1m dùng \textbf{phân phối thực nghiệm, $H=30$}; 5m dùng \textbf{hỗn hợp chuẩn 2 thành phần, $H=30$, hiệu chỉnh PIT quá khứ}. Phân phối thực nghiệm với $H=30$ ở 5m là đối chứng được định trước.
+
+%=====================================================================
+\section{Tập kiểm thử cuối (Phase 8)}
+
+Giai đoạn 02/01/2025--17/07/2026 gồm 381 phiên. Ở 5m có 76 lần ước lượng, không lần nào thất bại.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Kết quả trên tập kiểm thử cuối (tỷ lệ bao phủ tính bằng \%).}
+\begin{tabular}{lrrrrr}
+\toprule
+Mô hình & Nến & Tổn thất ($\times10^{-5}$) & Bao phủ 90 & Bao phủ 95 & Bao phủ 99,5 \\
+\midrule
+1m Thực nghiệm, $H=30$ (đã chọn) & 90.478 & 3,0154 & 89,96 & 94,97 & 99,49 \\
+5m Hỗn hợp 2 hiệu chỉnh (đã chọn) & 17.474 & 7,2597 & 89,49 & 94,68 & 99,57 \\
+5m Thực nghiệm, $H=30$ (đối chứng) & 17.474 & 7,2434 & 90,03 & 94,94 & 99,42 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ở 5m, mô hình đã chọn có tổn thất cao hơn đối chứng 0,225\%. Chênh lệch trung bình là $+1{,}632\times10^{-7}$; khoảng tin cậy 95\% bootstrap chưa hiệu chỉnh là $[+2{,}83\times10^{-8};\ +3{,}02\times10^{-7}]$ và $p=0{,}022$. Chênh lệch bất lợi xuất hiện ở cả năm 2025 (+0,30\%) và 2026 (+0,07\%); hai phân đoạn này chỉ mang tính mô tả. Lợi thế của hỗn hợp chuẩn hiệu chỉnh trên tập xác thực \emph{không tổng quát hóa} sang tập kiểm thử cuối.
+
+Ở 1m, tỷ lệ bao phủ tổng thể gần mức danh nghĩa ở mọi khoảng, nhưng các lần vượt khoảng vẫn tụ cụm. Phase 8 chỉ chấm hai mô hình đã chọn, nên chưa có bảng xếp hạng chín họ trên tập kiểm thử cuối.
+
+%=====================================================================
+\section{Thảo luận}
+
+\subsection{Vì sao phân phối thực nghiệm không thua các họ tham số}
+
+Về lý thuyết, khi mô hình tham số đúng dạng, phân vị suy ra từ MLE có phương sai nhỏ hơn phân vị mẫu. Lợi thế này đáng kể khi cỡ mẫu nhỏ và mô hình đúng. Cả hai điều kiện đều không thỏa ở đây: cỡ mẫu mỗi cửa sổ lớn (khoảng 14.270 và 2.750 quan sát), trong khi sai dạng mô hình tạo ra độ chệch không giảm khi cỡ mẫu tăng.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Phân vị trên đã chuẩn hóa (trung bình qua các lần ước lượng) so với phân vị của $|z|$ ngoài mẫu (5m, $H=60$).}
+\begin{tabular}{lrrrrr}
+\toprule
+Khoảng dự báo & 90\% & 95\% & 97,5\% & 99\% & 99,5\% \\
+\midrule
+Cần có (phân vị $|z|$ thực tế) & 1,657 & 2,213 & 2,816 & 3,604 & 4,228 \\
+Student-t & 1,410 & 1,877 & 2,423 & 3,312 & 4,152 \\
+GH & 1,542 & 2,051 & 2,609 & 3,420 & 4,090 \\
+Hỗn hợp 2 thành phần & 1,566 & 2,181 & 2,773 & 3,449 & 3,901 \\
+Chuẩn & 1,645 & 1,960 & 2,241 & 2,576 & 2,807 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ba cơ chế có thể giải thích kết quả:
+\begin{enumerate}[nosep]
+\item \textbf{Sai dạng của Student-t.} Một tham số bậc tự do điều khiển cả phần giữa lẫn phần đuôi. Khi bậc tự do nhỏ, đuôi đủ dày nhưng phần giữa quá nhọn, nên khoảng 90--95\% quá hẹp.
+\item \textbf{Chuẩn hóa phương sai bằng 1 theo mô-men lý thuyết.} Với Student-t, phương sai bằng $s^2\,\nu/(\nu-2)$ (với $\nu$ là bậc tự do) và rất nhạy khi $\nu$ gần 3. Ngoài ra, $z$ ngoài mẫu có độ lệch chuẩn 1,018 (1m) và 1,076 (5m), tức σ EWMA ước lượng thấp độ biến động; mọi phân phối bị ép phương sai bằng 1 sẽ hẹp theo. Phân phối thực nghiệm lấy phân vị trực tiếp từ $z$ nên tự hấp thụ sai lệch thang đo này.
+\item \textbf{Mục tiêu ước lượng khác mục tiêu đánh giá.} MLE tối ưu toàn bộ mật độ, vốn chịu ảnh hưởng chủ yếu từ phần giữa phân phối. Tổn thất phân vị lại chỉ đánh giá các phân vị ở đuôi.
+\end{enumerate}
+
+\phanbien{Các cơ chế trên dựa trên phân tích tệp kết quả hiện có. Chúng chưa được kiểm tra bằng mô phỏng có kiểm soát; Phase 9E và 9F được đề xuất cho mục đích này.}
+
+\subsection{Giới hạn}
+
+\begin{itemize}[nosep]
+\item Chưa có mô phỏng Monte Carlo đo độ chính xác của ước lượng. Unit test chỉ kiểm tra tính đúng về số học (CDF và hàm phân vị khớp nhau, mô-men, hội tụ).
+\item Các họ tham số được ước lượng lại mỗi 5 phiên, còn phân phối thực nghiệm cập nhật mỗi phiên. Sự bất cân xứng này có lợi cho phân phối thực nghiệm.
+\item Vượt khoảng tụ cụm ở mọi mô hình: $z_t$ chưa gần độc lập cùng phân phối, nên kết luận về $F$ phụ thuộc vào mô hình σ.
+\item Bootstrap giả định khối 5 phiên; giá trị p không bao quát mọi phụ thuộc dài hạn.
+\item Phase 7A và 7B mang tính khám phá vì danh sách ứng viên được chọn trên toàn bộ tập xác thực.
+\item Múi giờ và quy tắc đáo hạn hợp đồng chưa được xác minh.
+\end{itemize}
+
+%=====================================================================
+\section{Kết luận tạm thời}
+
+\begin{enumerate}[nosep]
+\item $z_t$ có đuôi dày: phân phối chuẩn kém rõ ở cả hai khung.
+\item Trên tập xác thực, không họ tham số nào tốt hơn phân phối thực nghiệm một cách thuyết phục. Chênh lệch tốt nhất khoảng 0,05\% (1m) và 0,3\% (5m), kèm tỷ lệ bao phủ thấp hơn mức danh nghĩa.
+\item Mô hình σ, cụ thể là chu kỳ bán rã, ảnh hưởng tới chất lượng khoảng dự báo nhiều hơn lựa chọn họ phân phối.
+\item Tập kiểm thử cuối không xác nhận lợi thế của hỗn hợp chuẩn hiệu chỉnh PIT ở 5m.
+\item Phân phối của $z_t$ gần đối xứng; tham số lệch xấp xỉ 0.
+\end{enumerate}
+
+%=====================================================================
+\section{Kế hoạch Phase 9 (đề xuất, chưa duyệt)}
+
+Mọi kết quả Phase 9 mang tính khám phá. DEC-005 và PHASE8-V1 giữ nguyên.
+
+\begin{itemize}[nosep]
+\item \textbf{9A:} chẩn đoán $z_t$ trên tập xác thực: hàm tự tương quan của $z$ và $z^2$, $|z|$ theo giờ trong phiên, PIT theo giờ và theo trạng thái biến động.
+\item \textbf{9B:} so sánh chín họ với $H=30$ trên tập xác thực.
+\item \textbf{9C:} bảng mô tả chín họ trên 2025--2026, không chọn lại mô hình.
+\item \textbf{9D:} σ có điều chỉnh mùa vụ trong phiên, nếu 9A cho thấy cần thiết.
+\item \textbf{9E:} mô phỏng Monte Carlo đo độ chính xác của ước lượng và ảnh hưởng của sai dạng mô hình (mục~\ref{sec:9e}).
+\item \textbf{9F:} độ nhạy theo cách chuẩn hóa thang đo: giữ tham số thang đo đã ước lượng, hoặc chuẩn hóa theo phân vị.
+\end{itemize}
+
+\subsection{Thiết kế 9E}
+\label{sec:9e}
+
+\textbf{Ý tưởng.} Với dữ liệu thật, ta không biết tham số thật nên không đo được sai số ước lượng. Mô phỏng Monte Carlo giải quyết điều này: sinh mẫu từ một \emph{phân phối sinh mẫu} có tham số đã biết, ước lượng lại bằng đúng quy trình của Phase 5, rồi so kết quả với giá trị thật. Lặp lại nhiều lần sẽ cho phân phối lấy mẫu của ước lượng, từ đó tính độ chệch và RMSE.
+
+\begin{table}[h]
+\centering
+\small
+\caption{Quy mô và chi phí dự kiến của 9E (đo trên máy cục bộ ngày 25/09/2026, một tiến trình).}
+\begin{tabularx}{\linewidth}{lX}
+\toprule
+Thành phần & Thiết lập \\
+\midrule
+Khung và cỡ mẫu & 1m: $n=14.271$; 5m: $n=2.753$ (trung vị cửa sổ ước lượng thực tế) \\
+Phân phối sinh mẫu & 10: chín họ tại tham số bằng trung vị của Phase 5, và lấy mẫu lại có hoàn lại từ $z$ của tập xác thực đã chuẩn hóa \\
+Số lần lặp & $R=200$ cho mỗi cặp (khung, phân phối sinh mẫu) \\
+Mô hình ước lượng & Chín họ và phân vị thực nghiệm trên mỗi mẫu \\
+Tổng quy mô & 4.000 mẫu mô phỏng; 36.000 lần ước lượng tham số \\
+Thời gian cho chín họ & Khoảng 5,5 giây mỗi mẫu (5m); khoảng 23,7 giây mỗi mẫu (1m); GH chiếm 75--80\% \\
+Chi phí 9E-a/b & 16--20 giờ với một tiến trình; khoảng 2,5--3 giờ với 8 tiến trình \\
+9E-c (tùy chọn) & 3 cửa sổ thật mỗi khung $\times$ $B=100$ mẫu bootstrap: 600 mẫu, 5.400 lần ước lượng, khoảng 2,5 giờ với một tiến trình \\
+Chạy thử & $R=20$, khoảng 10\% chi phí \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Đầu ra dự kiến.}
+\begin{itemize}[nosep]
+\item \textbf{9E-a, độ chính xác khi mô hình đúng dạng} (phân phối sinh mẫu trùng họ ước lượng): độ chệch và RMSE của tham số; tỷ lệ chạm biên và ước lượng thất bại; độ chệch và RMSE của 10 phân vị chuẩn hóa; hiệu quả tương đối, tức tỷ số RMSE phân vị so với phân vị thực nghiệm. Tỷ số nhỏ hơn 1 nghĩa là mô hình tham số chính xác hơn ở cỡ mẫu này.
+\item \textbf{9E-b, ảnh hưởng của sai dạng} (phân phối sinh mẫu khác họ ước lượng): sai lệch phân vị so với phân vị thật; tỷ lệ bao phủ đúng, tính bằng CDF của phân phối sinh mẫu; tổn thất phân vị vượt mức so với phân vị thật trên một mẫu đánh giá $10^6$ điểm; thứ hạng các họ theo từng phân phối sinh mẫu.
+\end{itemize}
+
+Khi đo thời gian, hỗn hợp 3 thành phần ước lượng thất bại (chạm chặn dưới của trọng số) trên một mẫu sinh từ Student-t với $n=2.753$. Các ước lượng thất bại trong 9E sẽ được ghi lại như một kết quả.
+
+%=====================================================================
+\section*{Phụ lục: truy nguyên tệp kết quả}
+\addcontentsline{toc}{section}{Phụ lục: truy nguyên tệp kết quả}
+
+\begin{itemize}[nosep]
+\item Thư mục tệp kết quả:
+  \begin{itemize}[nosep]
+  \item Phase 3: \texttt{outputs/baseline\_v1/}
+  \item Phase 5: \texttt{outputs/distribution\_wf\_v1/}
+  \item Phase 6: \texttt{outputs/selection\_v1/}
+  \item Phase 7A, 7B: \texttt{outputs/phase7a\_v1/}, \texttt{outputs/phase7b\_v1/}
+  \item Phase 8: \texttt{outputs/phase8\_v1/}
+  \end{itemize}
+\item Checkpoint Phase 8 (SHA-256, rút gọn): 1m \texttt{5e14485f\ldots 75cf1}; 5m \texttt{fdb55d67\ldots 29826}.
+\item Báo cáo Phase 8 (SHA-256, rút gọn): 1m \texttt{00797409\ldots f9f7}; 5m \texttt{9598c903\ldots ff42}.
+\item Giá trị hash đầy đủ: \texttt{docs/phase8\_final\_assessment.md}.
+\item Cấu hình: \texttt{configs/*.json}. Quyết định: DEC-001 đến DEC-007 trong \texttt{PROCESS.md}.
+\item Tên trong code giữ nguyên tiếng Anh (ví dụ \texttt{empirical\_ewma}, \texttt{mean\_pinball\_equal\_weight}); đối chiếu ở \texttt{docs/thuat\_ngu.md}.
+\end{itemize}
+
+\end{document}
