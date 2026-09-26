@@ -1,0 +1,9 @@
+{
+  "experiment_id": "PHASE9F-V1",
+  "source_config": "configs/phase9d_v1.json",
+  "source_root": "outputs/phase9d_v1",
+  "half_lives_minutes": [30, 60],
+  "tuning_end_date": 20231231,
+  "last_development_date": 20241231,
+  "quantile_tolerance": 1e-9
+}

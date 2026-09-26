@@ -1,0 +1,11 @@
+{
+  "experiment_id": "PHASE9E-V1",
+  "sources": {"1m": "outputs/phase9d_v1/1m/hl30", "5m": "outputs/phase9d_v1/5m/hl60"},
+  "replications": 200,
+  "include_bootstrap_dgp": true,
+  "central_coverages": [0.9, 0.95, 0.975, 0.99, 0.995],
+  "grid_limit": 30.0,
+  "grid_points": 12001,
+  "seed": 20260926,
+  "workers": 0
+}

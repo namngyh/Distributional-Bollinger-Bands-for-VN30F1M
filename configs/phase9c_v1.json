@@ -1,0 +1,23 @@
+{
+  "experiment_id": "PHASE9C-V1",
+  "prediction_start": 20250101,
+  "last_development_date": 20260717,
+  "final_period_start": 20250101,
+  "half_life_by_timeframe": {"1m": 30, "5m": 60},
+  "rolling_window_minutes": 240,
+  "seasonal_window_days": 250,
+  "seasonal_min_days": 20,
+  "seasonal_min_bucket_observations": 20,
+  "bucket_minutes": 15,
+  "bucket_labels": ["09:00", "09:15", "09:30", "09:45", "10:00", "10:15", "10:30", "10:45",
+                    "11:00", "11:15", "13:00", "13:15", "13:30", "13:45", "14:00", "14:15"],
+  "fit_window_days": 60,
+  "refit_every_days": 5,
+  "central_coverages": [0.9, 0.95, 0.975, 0.99, 0.995],
+  "bucket_coverage_tags": ["950", "990"],
+  "baseline_model": "empirical_ewma",
+  "calendar_split_date": 20251231,
+  "reference": {"directory": "outputs/phase8_v1/{timeframe}", "model": "empirical_ewma",
+                "label": "empirical_ewma_hl30_unadjusted"},
+  "development_report": "outputs/phase9d_v1/{timeframe}/report.json"
+}

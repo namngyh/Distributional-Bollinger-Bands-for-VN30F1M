@@ -113,6 +113,10 @@ Kết quả chính: phương sai của \(z_t\) thay đổi 4–5 lần theo gi�
 
 Trên máy chạy tác vụ dài, chạy `.\run_phase9d.bat check` (chỉ kiểm tra), rồi `.\run_phase9d.bat` (khoảng 5 giờ với một tiến trình: 1m khoảng 2,2 giờ mỗi \(H\), 5m khoảng 20 phút mỗi \(H\); cần ít nhất 6 GiB trống). Thứ tự chạy: 5m trước, rồi 1m, cuối cùng là báo cáo. Kết quả ở `outputs/phase9d_v1/<khung>/hl<H>/` và `outputs/phase9d_v1/<khung>/report.json`. Nếu bị ngắt, chạy lại cùng lệnh; không xóa thư mục kết quả. Khi xong, gửi lại toàn bộ `outputs/phase9d_v1/` để kiểm tra.
 
-## Phase 9C, 9E, 9F (đề xuất, chưa duyệt)
+## Phase 9C, 9E, 9F (đã cài đặt, chạy tuần tự)
+
+Chạy `.\run_phase9.bat check` (chỉ kiểm tra nguồn 9D và Phase 8), rồi `.\run_phase9.bat`. Thứ tự: 9F (vài phút) → 9C 5m, 1m và báo cáo (khoảng 1–1,5 giờ) → 9E 5m, 1m (song song nhiều tiến trình, khoảng 5–7 giờ). Tổng khoảng 6–9 giờ; nên tắt chế độ ngủ của máy. Nếu bị ngắt, chạy lại cùng lệnh: 9C chạy tiếp từ checkpoint, 9E bỏ qua các trường hợp đã xong, 9F và các báo cáo đã có sẽ được kiểm tra lại. Kết quả ở `outputs/phase9f_v1/`, `outputs/phase9c_v1/`, `outputs/phase9e_v1/`. Thiết kế chi tiết: [kế hoạch nghiên cứu](docs/research_plan.md), DEC-010.
+
+## Phase 9C, 9E, 9F — mô tả
 
 Các mục: bảng mô tả chín họ trên 2025–2026; mô phỏng Monte Carlo đo độ chính xác của ước lượng và ảnh hưởng của sai dạng mô hình (9E: 4.000 mẫu mô phỏng, 36.000 lần ước lượng, khoảng 16–20 giờ với một tiến trình); độ nhạy theo cách chuẩn hóa thang đo (9F). Mọi kết quả sẽ mang tính khám phá; DEC-005 và PHASE8-V1 giữ nguyên. Chi tiết trong [kế hoạch nghiên cứu](docs/research_plan.md).

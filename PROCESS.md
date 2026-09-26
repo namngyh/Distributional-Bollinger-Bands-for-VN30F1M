@@ -1961,6 +1961,22 @@ Affected modules: None (no code change); documentation and Bao_cao only.
 Status: ACTIVE
 ```
 
+## DEC-010 — Phase 9C, 9E, 9F designs and single sequential run
+
+```text
+Date: 2026-09-26
+Decision: User asked to implement 9E, 9F and 9C and run them in one sequential pass (run_phase9.bat: 9F -> 9C -> 9E).
+9F: no refit; reuse Phase 9D fits and sigma (HL30, HL60); compare variance-one normalisation (9D) with keeping the fitted location/scale, q = sigma*(m + s*q_std); paired bootstrap per family on its own days, Holm across families.
+9C: 2025-01-02..2026-07-17, descriptive only (no p-values, no reselection); seasonal sigma with the development-chosen half-life (1m 30, 5m 60); reference = unadjusted empirical HL30 from Phase 8 on the same bars; rank correlation of development vs later-period ordering.
+9E: generating laws = representative Phase 9D fit per family (refit whose ten quantiles are closest to the median vector) + i.i.d. bootstrap of standardized Phase 9D z; 2 timeframes x 10 laws x R=200; n = median 9D training size; per-case files, parallel workers (default cpu-2), CDF on a 12,001-point grid; 9E-c dropped.
+Reason: 9D showed sigma matters most; these items test estimator accuracy, normalisation and persistence under the corrected sigma.
+Alternatives considered: Phase 5 (unadjusted) laws for 9E; parameter-wise medians; single-process 9E (~20-30 h).
+Trade-offs: 9C and 9E remain exploratory; 9E ~5-7 h with 10 workers on i5-1235U.
+Affected modules: New phase9c.py, phase9e.py, phase9f.py, configs phase9c/9e/9f_v1.json, run_phase9.bat, tests. phase9d.py unchanged (signatures intact).
+Checkpoint compatibility: 9C per-day checkpoints; 9E per-case files with a signature hash; reports write-once with --check-only.
+Status: ACTIVE
+```
+
 Template:
 
 ## DEC-XXX — Title
@@ -2248,6 +2264,16 @@ Artifacts: outputs/phase9d_v1/<tf>/{hl30,hl60,report.json,bucket_coverage.csv}; 
 Remaining: Decide next (9C, 9E, 9F, or Phase 10 synthesis).
 ```
 
+## 2026-09-26 — Phase 9C/9E/9F implementation package
+
+```text
+Status: IMPLEMENTED and locally TESTED; full sequential user-run pending (run_phase9.bat).
+Changes: phase9f.py, phase9c.py, phase9e.py, configs phase9c/9e/9f_v1.json, run_phase9.bat (CRLF, via win_retry, BLAS threads 1), tests test_phase9c/9e/9f.py; plan/README/PROCESS (DEC-010).
+Validation: 69 unittests pass. run_phase9.bat check passes (9D sources and reports verified; 9C 0/381). Real-data smoke (ignored dirs outputs/phase9*_smoke_v1): 9F 5m full report in 34 s; 9C 5m two days; 9E 5m R=2 setup/run(2 workers)/report/check-only, 1m setup and cases, parallel run through win_retry.
+Timing: 9E ~10 s per 5m case and ~68 s per 1m case single-threaded.
+Remaining: User runs run_phase9.bat; return outputs/phase9f_v1, phase9c_v1, phase9e_v1 for verification.
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -2319,7 +2345,7 @@ Waiting for user action on: Full Phase 7B .bat run and returned trial artifacts.
 The handoff block above is historical and superseded by this current handoff:
 
 ```text
-Current task: Phase 9D verified and reported (DEC-008, DEC-009). Next: user chooses among 9C, 9E, 9F or Phase 10 synthesis. Project = best OOS distribution of z_t (DEC-006).
+Current task: Phase 9C/9E/9F implemented (DEC-010); waiting for user sequential run of run_phase9.bat. Project = best OOS distribution of z_t (DEC-006).
 Current status: Phase 0–8 done; 3/5/6/7A/7B/8 user-run verified. 5m locked calibrated Mixture 2 underperformed predeclared Empirical HL30 control on final pinball; 1m overall coverage near nominal but exceedances clustered. Development evidence (Phase 5–6): no parametric family clearly beats Empirical EWMA; Phase 7A: sigma half-life matters more than F. No Phase 9 or replacement winner approved.
 Approved scope: 2026-09-25 user approved documentation-only scope update (DEC-006); done. No new fitting/model code.
 Implemented: Updated README.md, docs/research_plan.md, docs/phase8_final_assessment.md, docs/data_contract.md, PROCESS.md; all code/config/artifacts unchanged.
@@ -2375,7 +2401,9 @@ Resume status: Full user-run complete. Preserve outputs/phase8_v1 unchanged.
 [x] User approved 9A; PHASE9A-V1 implemented, 6 new tests (54 total) pass, run on 1m/5m, reports re-checked, results added to Bao_cao and research_plan.
 [x] User approved 9D (DEC-008: 250-day seasonal window, HL30+HL60); implemented, 59 tests pass, preflight and real-data smoke OK.
 [x] User ran run_phase9d.bat; all four trials and both reports verified; 5m descriptive only (DEC-009); results added to Bao_cao.
-[ ] Approve (or reject) remaining Phase 9 items: 9C descriptive 2025–2026 nine-family table, 9E simulation (pilot R=20 first), 9F scale normalization. 9B is covered by 9D.
+[x] User approved 9C, 9E, 9F (DEC-010); implemented and tested; 9B is covered by 9D.
+[ ] User runs run_phase9.bat (9F -> 9C -> 9E, ~6-9 h); AI verifies outputs and adds results to Bao_cao.
+[ ] Phase 10: final synthesis report.
 [ ] Obtain source timezone and contract rollover metadata when available.
 [ ] Phase 10: synthesis report answering the research question, with reproducibility lineage.
 ```
