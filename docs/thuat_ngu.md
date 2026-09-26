@@ -42,6 +42,8 @@ Tài liệu của project dùng thuật ngữ thống kê tiếng Việt theo b�
 | Thống kê \(Q\) (dạng Box–Pierce) | \(Q=\sum_k n_k\hat\rho_k^2\); so với \(\chi^2\) chỉ để tham chiếu vì giả định độc lập | portmanteau, `portmanteau` |
 | Tính mùa vụ trong phiên | Mức biến động trung bình thay đổi có quy luật theo giờ trong phiên giao dịch | intraday seasonality |
 | Điều chỉnh mùa vụ | Chia \(z\) cho căn bậc hai trung bình \(z^2\) của khối giờ tương ứng | seasonal adjustment, `z2_seasonally_adjusted` |
+| Hệ số mùa vụ \(s_b\) (Phase 9D) | \(\sqrt{\overline{r^2_b}/\overline{r^2}}\) của khối giờ \(b\), tính trên 250 phiên trước ngày dự báo | seasonal factor, `seasonal_factor` |
+| Mức biến động chung \(\tilde\sigma\) | EWMA của lợi suất đã khử mùa vụ \(r/s_b\); σ dự báo \(=s_b\tilde\sigma\) | deseasonalized EWMA, `sigma_tilde` |
 | Sai số chuẩn gom cụm theo ngày | Sai số chuẩn của trung bình cho phép các quan sát trong cùng ngày tương quan với nhau | day-clustered standard error, `se` |
 | Độ nhọn vượt chuẩn | Độ nhọn trừ 3; bằng 0 với phân phối chuẩn, lớn hơn 0 khi đuôi dày | excess kurtosis |
 | Trong mẫu / ngoài mẫu | Đánh giá trên dữ liệu đã dùng để ước lượng / trên dữ liệu sau thời điểm ước lượng | in-sample / out-of-sample (OOS) |

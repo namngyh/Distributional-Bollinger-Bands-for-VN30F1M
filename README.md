@@ -2,7 +2,7 @@
 
 **Câu hỏi nghiên cứu:** phân phối xác suất nào của phần dư chuẩn hóa \(z_t\) (trong \(r=\mu+\sigma z\)) cho dự báo ngoài mẫu tốt nhất đối với lợi suất VN30F1M ở khung 1 phút và 5 phút? Đây là nghiên cứu thuần về dự báo phân phối; **tín hiệu giao dịch và backtest nằm ngoài phạm vi** (DEC-006).
 
-**Trạng thái (2026-09-25):** Phase 0–8 hoàn tất và đã xác minh, kể cả lần đánh giá duy nhất trên tập kiểm thử cuối 2025-01-01–2026-07-17 ([đánh giá Phase 8](docs/phase8_final_assessment.md)). Phase 9A (chẩn đoán \(z_t\), mang tính khám phá) đã xong; 9B–9F đang được đề xuất, chưa duyệt. Phase 10 (tổng hợp và tái lập) chưa bắt đầu.
+**Trạng thái (2026-09-25):** Phase 0–8 hoàn tất và đã xác minh, kể cả lần đánh giá duy nhất trên tập kiểm thử cuối 2025-01-01–2026-07-17 ([đánh giá Phase 8](docs/phase8_final_assessment.md)). Phase 9A (chẩn đoán \(z_t\), mang tính khám phá) đã xong. Phase 9D (σ điều chỉnh mùa vụ trong phiên, so lại 9 họ) đã chạy xong và được xác minh. 9C, 9E, 9F vẫn là đề xuất. Phase 10 (tổng hợp và tái lập) chưa bắt đầu.
 
 Tài liệu chính:
 - [Kế hoạch nghiên cứu](docs/research_plan.md): bảng phase, phương pháp, kết quả từng phase.
@@ -103,6 +103,16 @@ python -m distributional_bands.phase9a --timeframe 1m --output-dir outputs/phase
 
 Kết quả chính: phương sai của \(z_t\) thay đổi 4–5 lần theo giờ trong phiên vì σ EWMA không mô tả tính mùa vụ (đầu phiên sáng σ quá lớn, cuối phiên chiều quá nhỏ). Tỷ lệ bao phủ 95% dao động khoảng 85–99% theo giờ dù tổng thể gần 95%. Ở 5m, điều chỉnh mùa vụ loại bỏ gần hết phụ thuộc chuỗi của \(z^2\); ở 1m còn cụm biến động ngắn hạn. Độ nhọn của \(z\) hầu như không đổi sau điều chỉnh: đuôi dày là đặc tính thật. Chi tiết ở mục 8 của [báo cáo](Bao_cao/bao_cao_ket_qua.tex).
 
-## Phase 9B–9F (đề xuất, chưa duyệt)
+## Phase 9D: σ điều chỉnh mùa vụ trong phiên (đã xong, mang tính khám phá)
 
-Ưu tiên 9D: σ có điều chỉnh mùa vụ trong phiên, ước lượng chỉ từ dữ liệu quá khứ. Các mục khác: so sánh chín họ với \(H=30\); bảng mô tả chín họ trên 2025–2026; mô phỏng Monte Carlo đo độ chính xác của ước lượng và ảnh hưởng của sai dạng mô hình (9E: 4.000 mẫu mô phỏng, 36.000 lần ước lượng, khoảng 16–20 giờ với một tiến trình); độ nhạy theo cách chuẩn hóa thang đo (9F). Mọi kết quả sẽ mang tính khám phá; DEC-005 và PHASE8-V1 giữ nguyên. Chi tiết trong [kế hoạch nghiên cứu](docs/research_plan.md).
+**Kết quả:** so với phân phối thực nghiệm σ \(H=30\) chưa điều chỉnh, σ điều chỉnh mùa vụ giảm tổn thất phân vị 7,4% (1m, \(H=30\)) và 9,6% (5m, \(H=60\)); tỷ lệ bao phủ 95% theo giờ nằm trong 93–96% (trước: 85–99%). Khi σ đã đúng, ở 1m không họ tham số nào tốt hơn phân phối thực nghiệm có ý nghĩa thống kê, còn phân phối chuẩn kém rõ; 5m chỉ báo cáo mô tả vì hỗn hợp 3 thành phần ước lượng thất bại vài lần (DEC-009). Chi tiết ở mục 9 của [báo cáo](Bao_cao/bao_cao_ket_qua.tex).
+
+**Cách làm:**
+
+σ dự báo = hệ số mùa vụ của khối 15 phút (ước lượng từ 250 phiên trước ngày dự báo) × EWMA của lợi suất đã khử mùa vụ, với \(H=30\) và \(H=60\). Trên \(z\) mới, cả 9 họ và phân phối thực nghiệm được ước lượng lại như Phase 5 và so ghép cặp với phân phối thực nghiệm σ \(H=30\) chưa điều chỉnh. Cấu hình: [phase9d_v1.json](configs/phase9d_v1.json).
+
+Trên máy chạy tác vụ dài, chạy `.\run_phase9d.bat check` (chỉ kiểm tra), rồi `.\run_phase9d.bat` (khoảng 5 giờ với một tiến trình: 1m khoảng 2,2 giờ mỗi \(H\), 5m khoảng 20 phút mỗi \(H\); cần ít nhất 6 GiB trống). Thứ tự chạy: 5m trước, rồi 1m, cuối cùng là báo cáo. Kết quả ở `outputs/phase9d_v1/<khung>/hl<H>/` và `outputs/phase9d_v1/<khung>/report.json`. Nếu bị ngắt, chạy lại cùng lệnh; không xóa thư mục kết quả. Khi xong, gửi lại toàn bộ `outputs/phase9d_v1/` để kiểm tra.
+
+## Phase 9C, 9E, 9F (đề xuất, chưa duyệt)
+
+Các mục: bảng mô tả chín họ trên 2025–2026; mô phỏng Monte Carlo đo độ chính xác của ước lượng và ảnh hưởng của sai dạng mô hình (9E: 4.000 mẫu mô phỏng, 36.000 lần ước lượng, khoảng 16–20 giờ với một tiến trình); độ nhạy theo cách chuẩn hóa thang đo (9F). Mọi kết quả sẽ mang tính khám phá; DEC-005 và PHASE8-V1 giữ nguyên. Chi tiết trong [kế hoạch nghiên cứu](docs/research_plan.md).

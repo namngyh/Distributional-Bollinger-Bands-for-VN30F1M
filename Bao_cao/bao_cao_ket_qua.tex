@@ -572,6 +572,109 @@ Một quan sát gợi ý: độ lệch chuẩn hai thành phần của hỗn h�
 \end{enumerate}
 
 %=====================================================================
+\section{Phase 9D: σ có điều chỉnh mùa vụ trong phiên}
+\label{sec:9d}
+
+\textbf{Thiết kế} (quyết định DEC-008). σ dự báo được tách thành hai phần: $\sigma_t = s_{b(t)}\,\tilde\sigma_t$. Hệ số mùa vụ $s_b$ của khối 15 phút $b$ bằng $\sqrt{\overline{r^2_b}/\overline{r^2}}$, tính trên 250 phiên liền trước ngày dự báo và cập nhật mỗi ngày. Mức biến động chung $\tilde\sigma_t$ là EWMA của lợi suất đã khử mùa vụ $r/s_b$, với $H=30$ và $H=60$. Trên $z=r/\sigma$ mới, cả chín họ và phân phối thực nghiệm được ước lượng lại như Phase 5 (cửa sổ 60 phiên, ước lượng lại mỗi 5 phiên). Tham chiếu là phân phối thực nghiệm với σ $H=30$ chưa điều chỉnh (Phase 7A), so ghép cặp trên cùng nến. Cả bốn cấu hình hoàn tất 748/748 ngày; hai báo cáo được tính lại và khớp với tệp đã lưu.
+
+\ghichu{Kết quả mang tính khám phá: thiết kế 9D dựa trên chẩn đoán 9A trên chính tập xác thực. Muốn khẳng định cần dữ liệu sau 17/07/2026.}
+
+\pgfplotstableread[col sep=comma]{du_lieu/9d_1m_bucket_coverage.csv}\muaVuMotPhut
+\pgfplotstableread[col sep=comma]{du_lieu/9d_5m_bucket_coverage.csv}\muaVuNamPhut
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1, horizontal sep=1.2cm},
+  bieudo gio, width=0.49\linewidth, height=6.2cm, ymin=82, ymax=100]
+\nextgroupplot[title={1m ($H=30$)}, ylabel={Tỷ lệ bao phủ khoảng 95\% (\%)}, xticklabels from table={\muaVuMotPhut}{group},
+  legend style={at={(0.02,0.02)}, anchor=south west}]
+\addplot[chuoi2, thick, dashed, mark=square*, mark size=1.3pt] table[x=index, y expr=100*\thisrow{empirical_ewma_cov950}]{\gioMotPhut};
+\addlegendentry{σ chưa điều chỉnh}
+\addplot[chuoi1, thick, mark=*, mark size=1.5pt] table[x=index, y expr=100*\thisrow{empirical_ewma_hl30_seasonal_cov950}]{\muaVuMotPhut};
+\addlegendentry{σ điều chỉnh mùa vụ}
+\addplot[gray!70, thin, domain=-0.6:15.6, samples=2, forget plot] {95};
+\addplot[gray!50, dotted, forget plot] coordinates {(9.5,82) (9.5,100)};
+\nextgroupplot[title={5m (điều chỉnh: $H=60$)}, xticklabels from table={\muaVuNamPhut}{group}]
+\addplot[chuoi2, thick, dashed, mark=square*, mark size=1.3pt] table[x=index, y expr=100*\thisrow{empirical_ewma_cov950}]{\gioNamPhut};
+\addplot[chuoi1, thick, mark=*, mark size=1.5pt] table[x=index, y expr=100*\thisrow{empirical_ewma_hl60_seasonal_cov950}]{\muaVuNamPhut};
+\addplot[gray!70, thin, domain=-0.6:15.6, samples=2, forget plot] {95};
+\addplot[gray!50, dotted, forget plot] coordinates {(9.5,82) (9.5,100)};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Tỷ lệ bao phủ của khoảng dự báo 95\% theo khối 15 phút, phân phối thực nghiệm, toàn tập xác thực. Đường nét đứt: σ EWMA $H=30$ chưa điều chỉnh (Phase 7A). Đường liền: σ điều chỉnh mùa vụ (Phase 9D).}
+\label{fig:9d-baophu}
+\end{figure}
+
+\subsection{Hiệu quả của điều chỉnh mùa vụ}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Chênh lệch tổn thất phân vị so với phân phối thực nghiệm σ $H=30$ chưa điều chỉnh, và tỷ lệ bao phủ trên toàn tập xác thực (\%). *: họ có tổn thất thấp nhất ở khung đó.}
+\label{tab:9d-chinh}
+\begin{tabular}{llrrrrr}
+\toprule
+Khung & Mô hình (σ điều chỉnh mùa vụ) & $\Delta$ 2022--2023 & $\Delta$ 2024 & Bao phủ 90 & Bao phủ 95 & Bao phủ 99,5 \\
+\midrule
+1m & Thực nghiệm, $H=30$ & $-7{,}38\%$ & $-7{,}44\%$ & 89,99 & 94,99 & 99,48 \\
+1m & Student-t lệch, $H=30$\,* & $-7{,}43\%$ & $-7{,}53\%$ & 89,78 & 94,87 & 99,35 \\
+1m & Thực nghiệm, $H=60$ & $-6{,}44\%$ & $-6{,}70\%$ & 89,97 & 94,99 & 99,49 \\
+1m & Chuẩn, $H=30$ & $-6{,}27\%$ & $-6{,}45\%$ & 90,75 & 94,57 & 98,48 \\
+\midrule
+5m & Thực nghiệm, $H=60$ & $-9{,}63\%$ & $-8{,}53\%$ & 89,91 & 94,92 & 99,42 \\
+5m & NIG, $H=60$\,* & $-9{,}88\%$ & $-8{,}85\%$ & 88,95 & 94,44 & 99,23 \\
+5m & Thực nghiệm, $H=30$ & $-8{,}72\%$ & $-7{,}83\%$ & 89,93 & 94,98 & 99,43 \\
+5m & Chuẩn, $H=60$ & $-8{,}16\%$ & $-7{,}20\%$ & 89,77 & 93,63 & 98,08 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Điều chỉnh mùa vụ làm tổn thất phân vị giảm khoảng 7,4\% ở 1m và 9,6\% ở 5m so với tham chiếu, và năm 2024 (hồi cứu) lặp lại cùng hướng (Bảng~\ref{tab:9d-chinh}). Ở 1m, cả 20 cấu hình mùa vụ đều tốt hơn tham chiếu với giá trị p Holm khoảng 0,01, là mức nhỏ nhất đạt được với 2.000 lần bootstrap. Mức cải thiện này lớn gấp hàng chục lần mọi khác biệt giữa các họ $F$ ở Phase 6.
+
+Hình~\ref{fig:9d-baophu} cho thấy tỷ lệ bao phủ 95\% theo giờ gần như phẳng: 93,7--96,3\% ở 1m và 93,3--96,2\% ở 5m, so với 85--99\% trước khi điều chỉnh. Tính tụ cụm của các lần vượt khoảng cũng giảm: ở 1m, giá trị p của kiểm định độc lập (khoảng 95\%, phía dưới) tăng từ $10^{-76}$ lên $10^{-44}$, nhưng vẫn còn tụ cụm rõ; ở 5m với $H=30$, giá trị p tăng từ 0,010 lên 0,12.
+
+Chu kỳ bán rã tốt nhất khác nhau giữa hai khung: $H=30$ ở 1m và $H=60$ ở 5m. Khi tính mùa vụ đã được mô tả riêng, ở 5m một EWMA chậm hơn trở nên có lợi hơn.
+
+\subsection{So sánh các họ phân phối khi σ đã được điều chỉnh}
+
+\begin{table}[h]
+\centering
+\small
+\caption{1m: chênh lệch tổn thất so với phân phối thực nghiệm mùa vụ cùng $H$, giai đoạn 2022--2023, bootstrap khối theo ngày, hiệu chỉnh Holm trên chín họ.}
+\label{tab:9d-ho}
+\begin{tabular}{lrrrr}
+\toprule
+& \multicolumn{2}{c}{$H=30$} & \multicolumn{2}{c}{$H=60$} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Họ & $\Delta$ & $p$ Holm & $\Delta$ & $p$ Holm \\
+\midrule
+Student-t lệch & $-0{,}053\%$ & 0,81 & $-0{,}088\%$ & 0,11 \\
+GH & $-0{,}041\%$ & 1,00 & $-0{,}078\%$ & 0,11 \\
+Student-t & $-0{,}040\%$ & 1,00 & $-0{,}077\%$ & 0,21 \\
+NIG & $-0{,}025\%$ & 1,00 & $-0{,}056\%$ & 0,24 \\
+Hỗn hợp 3 thành phần & $-0{,}009\%$ & 1,00 & $-0{,}026\%$ & 0,57 \\
+Hỗn hợp 2 thành phần & $0{,}000\%$ & 1,00 & $-0{,}011\%$ & 0,65 \\
+GED & $+0{,}104\%$ & 0,13 & $+0{,}072\%$ & 0,28 \\
+GED lệch & $+0{,}124\%$ & 0,03 & $+0{,}091\%$ & 0,18 \\
+Chuẩn & $+1{,}202\%$ & 0,004 & $+1{,}194\%$ & 0,004 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ở 1m, không họ tham số nào tốt hơn phân phối thực nghiệm một cách có ý nghĩa thống kê; các họ tốt nhất chỉ hơn 0,04--0,09\% (Bảng~\ref{tab:9d-ho}). Phân phối chuẩn kém rõ (+1,2\%, $p=0{,}004$), xác nhận đuôi dày của $z$. Các họ tham số thường có tỷ lệ bao phủ 90--95\% thấp hơn danh nghĩa, còn phân phối thực nghiệm sát danh nghĩa nhất.
+
+Ở 5m, hỗn hợp chuẩn 3 thành phần ước lượng thất bại 6 lần ở mỗi $H$ (thuật toán EM chạm chặn dưới của trọng số), trong đó 2 lần với $H=30$ rơi vào tháng 7/2023. Theo quy tắc định trước và quyết định của người dùng, báo cáo 5m \emph{không} xếp hạng ghép cặp và không suy luận thống kê; các con số 5m chỉ mang tính mô tả. Về mặt mô tả, với $H=60$ các họ NIG, GED và GH có tổn thất thấp hơn phân phối thực nghiệm khoảng 0,2--0,25\%, nhưng tỷ lệ bao phủ 90\% và 95\% thấp hơn (ví dụ NIG 88,95\% và 94,44\%). Student-t, vốn kém ở Phase 6 khi σ chưa điều chỉnh, nay có tổn thất ngang nhóm đầu, phù hợp với giả thuyết rằng nó từng bị phạt vì sai thang đo.
+
+\subsection{Hệ quả}
+
+\begin{enumerate}[nosep]
+\item Mô hình σ là yếu tố quyết định chất lượng khoảng dự báo; sau khi mô tả tính mùa vụ trong phiên, khoảng dự báo hiệu chuẩn đều theo giờ.
+\item Khi σ đã đúng, lựa chọn họ $F$ vẫn chỉ tạo khác biệt rất nhỏ. Phân phối thực nghiệm của $z$ có tổn thất ngang các họ tốt nhất và tỷ lệ bao phủ sát danh nghĩa nhất, nên là lựa chọn hợp lý nhất trên dữ liệu hiện có. Phân phối chuẩn bị loại rõ.
+\item Ở 1m vẫn còn cụm biến động ngắn hạn sau khi điều chỉnh mùa vụ.
+\end{enumerate}
+
+%=====================================================================
 \section{Kết luận tạm thời}
 
 \begin{enumerate}[nosep]
@@ -581,18 +684,19 @@ Một quan sát gợi ý: độ lệch chuẩn hai thành phần của hỗn h�
 \item Tập kiểm thử cuối không xác nhận lợi thế của hỗn hợp chuẩn hiệu chỉnh PIT ở 5m.
 \item Phân phối của $z_t$ gần đối xứng; tham số lệch xấp xỉ 0.
 \item (Phase 9A, khám phá) Phương sai của $z_t$ thay đổi 4--5 lần theo giờ trong phiên vì σ EWMA không mô tả tính mùa vụ; tỷ lệ bao phủ 95\% dao động khoảng 85--99\% theo giờ. Sau điều chỉnh mùa vụ, độ nhọn của $z_t$ hầu như không đổi: đuôi dày là đặc tính thật của $z_t$.
+\item (Phase 9D, khám phá) σ có điều chỉnh mùa vụ ước lượng từ quá khứ giảm tổn thất phân vị khoảng 7,4\% (1m) và 9,6\% (5m), và làm tỷ lệ bao phủ 95\% theo giờ nằm trong 93--96\%. Khi σ đã đúng, không họ tham số nào tốt hơn phân phối thực nghiệm một cách có ý nghĩa ở 1m; phân phối chuẩn kém rõ. Câu trả lời tạm thời cho câu hỏi nghiên cứu: phân phối thực nghiệm của $z_t$, kết hợp σ điều chỉnh mùa vụ.
 \end{enumerate}
 
 %=====================================================================
 \section{Kế hoạch Phase 9}
 
-Mọi kết quả Phase 9 mang tính khám phá. DEC-005 và PHASE8-V1 giữ nguyên. 9A đã hoàn thành (mục~\ref{sec:9a}); các mục còn lại là đề xuất, chưa duyệt.
+Mọi kết quả Phase 9 mang tính khám phá. DEC-005 và PHASE8-V1 giữ nguyên. 9A (mục~\ref{sec:9a}) và 9D (mục~\ref{sec:9d}) đã hoàn thành; 9B được 9D bao gồm; 9C, 9E, 9F là đề xuất, chưa duyệt.
 
 \begin{itemize}[nosep]
 \item \textbf{9A (đã xong):} chẩn đoán $z_t$ trên tập xác thực: tự tương quan của $z$ và $z^2$, $z^2$ và tỷ lệ bao phủ theo giờ trong phiên, theo nhóm σ và theo $|z|$ của nến trước.
 \item \textbf{9B:} so sánh chín họ với $H=30$ trên tập xác thực.
 \item \textbf{9C:} bảng mô tả chín họ trên 2025--2026, không chọn lại mô hình.
-\item \textbf{9D:} σ có điều chỉnh mùa vụ trong phiên, nếu 9A cho thấy cần thiết.
+\item \textbf{9D (đã xong):} σ có điều chỉnh mùa vụ trong phiên và so lại chín họ.
 \item \textbf{9E:} mô phỏng Monte Carlo đo độ chính xác của ước lượng và ảnh hưởng của sai dạng mô hình (mục~\ref{sec:9e}).
 \item \textbf{9F:} độ nhạy theo cách chuẩn hóa thang đo: giữ tham số thang đo đã ước lượng, hoặc chuẩn hóa theo phân vị.
 \end{itemize}

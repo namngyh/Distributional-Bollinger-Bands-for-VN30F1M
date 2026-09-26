@@ -1936,6 +1936,31 @@ Revisit conditions: User requests different wording.
 Status: ACTIVE
 ```
 
+## DEC-008 — Phase 9D past-only intraday-seasonal sigma
+
+```text
+Date: 2026-09-25
+Decision: After Phase 9A, user approved 9D. sigma_t = s_b(t) * EWMA(r / s_b) over prior bars; s_b = sqrt(bucket-mean r^2 / overall mean r^2) over the 250 trading days strictly before the forecast day, 15-minute buckets keyed by the target bar start, factor 1 while history < 20 days or bucket < 20 observations (warm-up only). Half-lives 30 and 60 (user choice). Refit all nine families plus empirical quantile on the new z (60-day window, every 5 days, distribution_fit_v2.json). Report pairs against unadjusted empirical HL30 (Phase 7A) and within-seasonal families; ranking 2022-2023, 2024 retrospective.
+Reason: Phase 9A showed EWMA sigma misses intraday seasonality, the largest calibration error source.
+Alternatives considered: 60- or 120-day seasonal window; HL30 only.
+Trade-offs: ~5 h single-process run; results exploratory because the final test was used in Phase 8; 250-day factors adapt slowly to schedule changes.
+Affected modules: New phase9d.py, phase9d_report.py, phase9d_v1.json, run_phase9d.bat, test_phase9d.py. Earlier artifacts immutable.
+Checkpoint compatibility: New PHASE9D-V1 paths; signature binds data/config/fit config/source hashes and half-life.
+Revisit conditions: Session schedule change, fit failures, or evidence that factors are unstable.
+Status: ACTIVE
+```
+
+## DEC-009 — Phase 9D 5m reported descriptively only
+
+```text
+Date: 2026-09-26
+Decision: normal_mixture_3 failed 6 EM fits per 5m half-life (2 in the 2022-23 ranking period at HL30). Under the predeclared common-day rule the 5m report withholds paired ranking and bootstrap. Offered options (drop mixture 3 from inference; common-day comparison; keep withheld), the user chose to keep it withheld: 5m results are descriptive only. 1m had zero failures and keeps full inference.
+Reason: Preserve the predeclared analysis rule rather than changing it after seeing results.
+Trade-offs: No 5m significance statements for Phase 9D.
+Affected modules: None (no code change); documentation and Bao_cao only.
+Status: ACTIVE
+```
+
 Template:
 
 ## DEC-XXX — Title
@@ -2199,6 +2224,30 @@ Artifacts: outputs/phase9a_v1/<tf>/{report.json,acf.csv,intraday.csv,sigma_group
 Remaining: Discuss 9D (past-only seasonal sigma) as next step; 9B/9C/9E/9F pending approval.
 ```
 
+## 2026-09-25 — Phase 9D implementation package (PHASE9D-V1)
+
+```text
+Status: IMPLEMENTED and locally TESTED; full user-run pending.
+Scope: DEC-008 (250-day past-only seasonal factors, HL30 and HL60, nine families + empirical on new z; development only).
+Changes: New phase9d.py, phase9d_report.py, configs/phase9d_v1.json, run_phase9d.bat (CRLF), tests/test_phase9d.py; research_plan/README/thuat_ngu updated.
+Validation: 59 unittests pass (5 new: locked scope, bucket rejection, causal factor recovery on synthetic seasonal data, sigma uses only prior bars, run/resume/final-date exclusion/report/check-only/corruption). run_phase9d.bat check: 0/748 for all four trials, no output created. Real-data smoke (outputs/phase9d_smoke_v1, ignored, not official) ran 5 days at 5m/1m HL30.
+Timing: one nine-family refit ~50 s (1m) / ~7 s (5m); forecast day <1 s; estimated full run ~5 h single process.
+Experiment ID: PHASE9D-V1.
+Latest checkpoint: official outputs/phase9d_v1 absent.
+Remaining: User runs run_phase9d.bat check, then run_phase9d.bat on compute machine; return outputs/phase9d_v1/ for verification.
+```
+
+## 2026-09-26 — Phase 9D user-run verified and reported
+
+```text
+Status: PHASE9D-V1 USER-RUN VERIFIED; results added to Bao_cao (section 9) and research_plan.
+Run notes: One transient Windows PermissionError on os.replace (latest.json locked) at 5m HL60 day 340; added src/distributional_bands/win_retry.py (outside run signatures) and routed run_phase9d.bat through it; resume succeeded. A second stop at 1m HL30 day 115 (no error reported; likely sleep) resumed cleanly.
+Validation: --check-only 748/748 for all four trials; both phase9d_report --check-only recomputations match stored reports.
+Findings (exploratory): vs unadjusted empirical HL30, seasonal empirical loss -7.38% (1m HL30) / -9.63% (5m HL60) on 2022-23, 2024 retrospective -7.44% / -8.53%; hourly 95% coverage 93.3-96.3% (was 85-99%); 1m within-seasonal families not better than empirical (best -0.04 to -0.09%, p_Holm>=0.11), normal +1.2% (p=0.004). 5m descriptive only (DEC-009): normal_mixture_3 failed 6 fits per HL.
+Artifacts: outputs/phase9d_v1/<tf>/{hl30,hl60,report.json,bucket_coverage.csv}; figure tables copied to Bao_cao/du_lieu/9d_*.
+Remaining: Decide next (9C, 9E, 9F, or Phase 10 synthesis).
+```
+
 Template:
 
 ## YYYY-MM-DD — Task
@@ -2270,7 +2319,7 @@ Waiting for user action on: Full Phase 7B .bat run and returned trial artifacts.
 The handoff block above is historical and superseded by this current handoff:
 
 ```text
-Current task: Phase 9A done; decide next Phase 9 item (9D recommended) under DEC-006 (project = best OOS distribution of z_t; no trading research).
+Current task: Phase 9D verified and reported (DEC-008, DEC-009). Next: user chooses among 9C, 9E, 9F or Phase 10 synthesis. Project = best OOS distribution of z_t (DEC-006).
 Current status: Phase 0–8 done; 3/5/6/7A/7B/8 user-run verified. 5m locked calibrated Mixture 2 underperformed predeclared Empirical HL30 control on final pinball; 1m overall coverage near nominal but exceedances clustered. Development evidence (Phase 5–6): no parametric family clearly beats Empirical EWMA; Phase 7A: sigma half-life matters more than F. No Phase 9 or replacement winner approved.
 Approved scope: 2026-09-25 user approved documentation-only scope update (DEC-006); done. No new fitting/model code.
 Implemented: Updated README.md, docs/research_plan.md, docs/phase8_final_assessment.md, docs/data_contract.md, PROCESS.md; all code/config/artifacts unchanged.
@@ -2324,7 +2373,9 @@ Resume status: Full user-run complete. Preserve outputs/phase8_v1 unchanged.
 [x] Add 9E (parameter-recovery and misspecification simulation) and 9F (scale-normalization sensitivity) to the Phase 9 proposal; benchmark fit cost locally.
 [x] Create Bao_cao/bao_cao_ket_qua.tex with official Phase 0–8 results for user review.
 [x] User approved 9A; PHASE9A-V1 implemented, 6 new tests (54 total) pass, run on 1m/5m, reports re-checked, results added to Bao_cao and research_plan.
-[ ] Approve (or reject) remaining Phase 9 items: 9D seasonal sigma (recommended next), 9B nine families at HL30, 9C descriptive 2025–2026 nine-family table, 9E simulation (pilot R=20 first), 9F scale normalization.
+[x] User approved 9D (DEC-008: 250-day seasonal window, HL30+HL60); implemented, 59 tests pass, preflight and real-data smoke OK.
+[x] User ran run_phase9d.bat; all four trials and both reports verified; 5m descriptive only (DEC-009); results added to Bao_cao.
+[ ] Approve (or reject) remaining Phase 9 items: 9C descriptive 2025–2026 nine-family table, 9E simulation (pilot R=20 first), 9F scale normalization. 9B is covered by 9D.
 [ ] Obtain source timezone and contract rollover metadata when available.
 [ ] Phase 10: synthesis report answering the research question, with reproducibility lineage.
 ```
